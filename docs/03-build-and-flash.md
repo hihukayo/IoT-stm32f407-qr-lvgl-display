@@ -64,6 +64,16 @@ python tools\gen_keil_project.py
 脚本会扫描 `firmware/Core/Src/*.c`、HAL `Src/*.c`、`Middlewares/qrcodegen/*.c`、
 `Middlewares/lvgl/src/**/*.c` 并写入 `QR_LVGL_F407.uvprojx`，同时打印每个分组的文件数。
 
+## 2.4 让 Keil 正确显示中文注释
+
+本工程源码是 **UTF-8（无 BOM）**，注释为中文。Keil uVision 默认按 ANSI/GBK 打开，
+会显示成乱码（**不影响编译**，armclang 按 UTF-8 处理）。设为 UTF-8 即可正常阅读：
+
+`Edit → Configuration → Editor → Encoding` 选择 **UTF-8**，然后重新打开文件。
+
+> 若你的 Keil 版本没有该选项，可以改装 `Keil MDK 5.3x` 以上，或用 VS Code 阅读源码。
+> 不建议给 .c 文件加 BOM（部分工具链/脚本会误判文件类型）。
+
 ## 3. 烧录
 
 ### 3.1 ST-Link / DAP-Link（推荐）

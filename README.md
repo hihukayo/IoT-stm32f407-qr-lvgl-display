@@ -19,6 +19,18 @@
 
 ---
 
+## 0. 效果示例
+
+固件生成的 240×240 二维码（`Hello 123`，QR 版本 3，29×29 模块，每模块 6 像素，
+四周 33 像素留白 + 4 模块静区），由 `tests/firmware/out/qr_hello123.bmp` 放大 2 倍：
+
+![示例二维码](docs/images/qr-example-hello123.png)
+
+该 BMP 文件大小为 **7 742 字节**、1bpp、无压缩，已用 OpenCV `QRCodeDetector`
+真实解码为 `Hello 123`。
+
+---
+
 ## 1. 功能一览
 
 ### 1.1 必做功能
@@ -379,3 +391,36 @@ UART 中断里只做 `ring_push(byte)` 并重新挂起接收；帧解析、二�
 - **加码制**：在 `qr_service.c` 里按 `qr_symbology_t` 分派，BMP/协议/界面无需改动。
 - **改协议**：`uart_protocol.h` + `host/protocol.py` 必须同步，且更新
   `docs/02-uart-protocol.md` 的版本号。
+
+---
+
+## 13. 推送到 GitHub
+
+本仓库目标地址：<https://github.com/hihukayo/IoT-stm32f407-qr-lvgl-display>
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\push_to_github.ps1
+```
+
+脚本会自动处理两件本机特有的麻烦事：
+
+1. **网络**：本机直连 `github.com:443` 常被重置，脚本会先试直连，失败后自动改走
+   本地代理 `http://127.0.0.1:7890`（可用 `-ProxyUrl` 指定别的端口）。
+2. **凭据**：通过 Git Credential Manager 使用 Windows 凭据管理器里已保存的 GitHub 账号。
+
+> ⚠️ **已知问题**：在本机首次尝试推送时返回
+> `403 Permission to hihukayo/IoT-stm32f407-qr-lvgl-display.git denied to zyh4188ya`，
+> 即**当前登录的 GitHub 账号对该仓库没有写权限**（不是网络问题）。
+> 解决办法二选一：
+> - 让仓库所有者 `hihukayo` 把 `zyh4188ya` 加为 Collaborator
+>   （仓库 Settings → Collaborators → Add people）；
+> - 或改用 `hihukayo` 账号登录后推送：先 `git credential-manager erase` 清掉旧凭据，
+>   再执行脚本，按提示在浏览器中授权。
+
+手动推送（等价命令）：
+
+```bash
+git remote add origin https://github.com/hihukayo/IoT-stm32f407-qr-lvgl-display.git
+# 直连不通时加代理：
+git -c http.proxy=http://127.0.0.1:7890 push -u origin main
+```
