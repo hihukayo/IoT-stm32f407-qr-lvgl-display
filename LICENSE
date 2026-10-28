@@ -1,0 +1,44 @@
+MIT License
+
+Copyright (c) 2026 IoT-stm32f407-qr-lvgl-display contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+-------------------------------------------------------------------------------
+本项目包含第三方组件，其许可证如下（详见各目录内的许可证文件）：
+
+1. LVGL v9.6.0
+   Copyright (c) 2021 LVGL Kft
+   MIT License — 见 firmware/Middlewares/lvgl/LICENCE.txt
+
+2. Nayuki QR Code generator (qrcodegen, C 实现)
+   Copyright (c) Project Nayuki
+   MIT License — 见 firmware/Middlewares/qrcodegen/LICENSE
+
+3. STM32F4xx HAL Driver
+   Copyright (c) 2017 STMicroelectronics
+   BSD-3-Clause — 见 firmware/Drivers/STM32F4xx_HAL_Driver/LICENSE.md
+
+4. CMSIS Device (STM32F4xx)
+   Copyright (c) 2017 STMicroelectronics
+   Apache License 2.0 — 见 firmware/Drivers/CMSIS/Device/ST/STM32F4xx/LICENSE.md
+
+5. pyserial
+   Copyright (c) 2001-2020 Chris Liechti
+   BSD-3-Clause — 通过 pip 安装，不随本仓库分发
