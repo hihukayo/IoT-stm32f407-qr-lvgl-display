@@ -13,9 +13,11 @@ firmware/MDK-ARM/build.log
 *.scvd
 *.axf
 *.hex
+!dist/*.hex
 *.bin
 *.elf
 *.map
+!dist/*.map
 *.htm
 *.crf
 *.o
