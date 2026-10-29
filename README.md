@@ -13,10 +13,11 @@
 | 二维码库 | Nayuki **qrcodegen**（C 语言，MIT） |
 | 串口 | USART1，PA9/PA10，默认 115200 8N1 |
 | 工具链 | Keil MDK-ARM（原验证 5.24a + AC6.7；本机复验 5.43a + AC6.24） |
-| 固件体积 | Flash **427.4 KiB** / 512 KiB；RAM 72.6 KiB / 128 KiB（**无全屏 framebuffer**）<br>AC6.7 构建为 330.4 KiB；AC6.24 对 LVGL 生成更大代码，仍余约 85 KiB |
-| 构建状态 | ✅ `0 Error(s), 0 Warning(s)`（AC6.24：`Code=415664 RO=21836 RW=120 ZI=74264`） |
+| 固件体积 | Flash **431 KiB** / 512 KiB；RAM **73.4 KiB** / 128 KiB（**无全屏 framebuffer**）<br>AC6.7 构建为 330.4 KiB；AC6.24 对 LVGL 生成更大代码，仍余约 80 KiB |
+| 构建状态 | ✅ `0 Error(s), 0 Warning(s)`（AC6.24：`Code=419312 RO=21836 RW=120 ZI=75160`） |
+| 掉电保存 | 板载 **W25Q16**（SPI1）保存文本 + ECC，上电自动恢复上一次的二维码 |
 | 软件测试 | ✅ 固件逻辑 104 项断言；上位机 62 项单测（含 10 项图片解码） |
-| 上板状态 | ✅ 已实测：屏幕显示、串口收发、BMP 导出、微信名片码复刻、图片导入 |
+| 上板状态 | ✅ 已实测：屏幕显示、串口收发、BMP 导出、微信名片码复刻、图片导入、掉电恢复 |
 
 ---
 
@@ -66,6 +67,7 @@ ECC=M，固件回 `V1 M 21x21`，状态栏 `QR code generated`）：
 | FR-103 文件预览 | 上位机预览 + 另存为 | ✅ 已实现 |
 | FR-104 多码制扩展 | 协议预留 `symbology` 枚举，Data Matrix 返回 `UNSUPPORTED` | ⚠️ **未实现**（如实标注） |
 | FR-105 图片导入 | 上位机解码图片中的二维码（含 Micro QR / Data Matrix / 一维码）→ 文本 → `SET_QR` | ✅ 已实现 |
+| FR-106 掉电保存 | W25Q16（SPI1）存文本 + ECC，A/B 双槽轮换 + CRC16；上电自动恢复 | ✅ 已实现 |
 
 ---
 
@@ -100,7 +102,7 @@ IoT-stm32f407-qr-lvgl-display/
 │   │   │   ├── lv_port_disp.h         LVGL → ST7789 移植层
 │   │   │   ├── app.h                  命令分派 / 图片流状态机
 │   │   │   └── stm32f4xx_hal_conf.h   HAL 模块裁剪
-│   │   └── Src/                       对应 .c 实现（11 个文件）
+│   │   └── Src/                       对应 .c 实现（12 个文件，含 storage.c）
 │   ├── Drivers/                       CMSIS + STM32F4 HAL（裁剪后 15 个 .c）
 │   ├── Middlewares/
 │   │   ├── lvgl/                      LVGL v9.6.0 源码 + lv_conf.h
@@ -344,6 +346,8 @@ UART 中断里只做 `ring_push(byte)` 并重新挂起接收；帧解析、二�
 | T-103 | 屏幕二维码被扫码器识别 | ⚠️ 部分：设备导出的 BMP 反解逐字节一致、微信名片码上板复刻成功；**手机实扫未实测** |
 | T-107 | 串口真实传输 7742 B + CRC32 校验 | ✅ `BEGIN/END` 一致，CRC32 `0xDB95AC43` 校验通过 |
 | T-111 | LVGL 刷新无闪烁、对象/内存稳定 | ✅ 界面、状态栏刷新正常 |
+| T-114 | 掉电/复位后恢复上一次的二维码 | ✅ 复位后屏幕自动显示同一张码，状态栏 `Restored from flash`；`GET_STATUS` 不重发 `SET_QR` 即为 `last_qr_valid=1` |
+| T-115 | 双槽轮换（连续写入不同内容） | ✅ 第二次写入后复位显示的是**新**内容（版本 3 / 29×29），序号比较正确 |
 
 修复过程中发现并解决的上板缺陷见 [已知限制 3.1](docs/06-known-limitations.md)
 （LVGL I1 位图在 `RGB565_SWAPPED` 目标下渲染为全黑）。

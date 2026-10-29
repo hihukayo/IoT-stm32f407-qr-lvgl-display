@@ -6,7 +6,7 @@
  *          1. `HAL_Init()`（SysTick 1 ms）；
  *          2. `SystemClock_Config()`（HSE 8 MHz -> PLL -> 168 MHz）；
  *          3. 板级 GPIO（LCD 的 CS/DC/BLK、状态灯）；
- *          4. SPI2（LCD 总线）与 USART1（上位机）；
+ *          4. SPI2（LCD 总线）、SPI1（W25Q16）与 USART1（上位机）；
  *          5. `ST7789_Init()` 点亮屏幕；
  *          6. `LV_Port_Init()` 注册 LVGL 显示；
  *          7. `APP_Init()` 建界面、绑定 BMP、启动串口中断。
@@ -26,12 +26,14 @@
  * ==================================================================== */
 UART_HandleTypeDef huart1;
 SPI_HandleTypeDef  hspi2;
+SPI_HandleTypeDef  hspi1;
 
 /* ======================================================================
  * 内部函数声明
  * ==================================================================== */
 static void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_SPI1_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_USART1_UART_Init(void);
 
@@ -51,6 +53,7 @@ int main(void)
 
     /* 4. 外设 */
     MX_SPI2_Init();
+    MX_SPI1_Init();          /* W25Q16：掉电保存二维码文本 */
     MX_USART1_UART_Init();
 
     /* 5. 屏幕与 GUI */
@@ -191,6 +194,33 @@ static void MX_SPI2_Init(void)
     hspi2.Init.CRCPolynomial     = 10U;
 
     if (HAL_SPI_Init(&hspi2) != HAL_OK) {
+        Error_Handler();
+    }
+}
+
+/* ======================================================================
+ * SPI1（板载 W25Q16，做二维码文本的掉电保存）
+ * ==================================================================== */
+/**
+ * @brief  初始化 SPI1：主机、8 位、Mode 0、MSB first、软件 NSS。
+ * @note   SPI1 在 APB2 = 84 MHz，4 分频 -> 21 MHz；W25Q16 支持到 104 MHz。
+ */
+static void MX_SPI1_Init(void)
+{
+    hspi1.Instance               = SPI1;
+    hspi1.Init.Mode              = SPI_MODE_MASTER;
+    hspi1.Init.Direction         = SPI_DIRECTION_2LINES;
+    hspi1.Init.DataSize          = SPI_DATASIZE_8BIT;
+    hspi1.Init.CLKPolarity       = SPI_POLARITY_LOW;
+    hspi1.Init.CLKPhase          = SPI_PHASE_1EDGE;
+    hspi1.Init.NSS               = SPI_NSS_SOFT;
+    hspi1.Init.BaudRatePrescaler = BOARD_FLASH_SPI_PRESCALER;
+    hspi1.Init.FirstBit          = SPI_FIRSTBIT_MSB;
+    hspi1.Init.TIMode            = SPI_TIMODE_DISABLE;
+    hspi1.Init.CRCCalculation    = SPI_CRCCALCULATION_DISABLE;
+    hspi1.Init.CRCPolynomial     = 10U;
+
+    if (HAL_SPI_Init(&hspi1) != HAL_OK) {
         Error_Handler();
     }
 }

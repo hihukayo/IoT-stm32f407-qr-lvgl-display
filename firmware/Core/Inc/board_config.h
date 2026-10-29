@@ -134,7 +134,29 @@ extern SPI_HandleTypeDef hspi2;            /**< SPI2 句柄，定义于 main.c *
 #define BOARD_SPI_IRQ_PRIO      2U
 
 /* ======================================================================
- * 7. 常用颜色（RGB565）
+ * 7. 外部 SPI Flash：W25Q16（2 MiB），用于掉电保存上一次的二维码文本
+ *       原理图「SPI Flash」段：SCK=PB3  MISO=PB4  MOSI=PB5  CS=PA15
+ *       与 LCD 的 SPI2 是两条独立总线，互不影响。
+ * ==================================================================== */
+extern SPI_HandleTypeDef hspi1;
+
+#define BOARD_FLASH_ENABLE              1                       /**< 0 = 关闭持久化        */
+#define BOARD_FLASH_SPI_HANDLE          (&hspi1)
+#define BOARD_FLASH_SPI_GPIO_PORT       GPIOB
+#define BOARD_FLASH_SCK_PIN             GPIO_PIN_3              /**< PB3  = SPI1_SCK  */
+#define BOARD_FLASH_MISO_PIN            GPIO_PIN_4              /**< PB4  = SPI1_MISO */
+#define BOARD_FLASH_MOSI_PIN            GPIO_PIN_5              /**< PB5  = SPI1_MOSI */
+#define BOARD_FLASH_SPI_AF              GPIO_AF5_SPI1
+/** SPI1 挂在 APB2(84 MHz)，4 分频 = 21 MHz；W25Q16 支持到 104 MHz，余量充足。 */
+#define BOARD_FLASH_SPI_PRESCALER       SPI_BAUDRATEPRESCALER_4
+/** 片选：PA15，低有效；上电默认拉高（不选中）。 */
+#define BOARD_FLASH_CS_PORT             GPIOA
+#define BOARD_FLASH_CS_PIN              GPIO_PIN_15
+/** W25Q16 的 JEDEC ID（读 0x9F 应得 EF 40 15）。 */
+#define BOARD_FLASH_JEDEC_ID            0xEF4015U
+
+/* ======================================================================
+ * 8. 常用颜色（RGB565）
  * ==================================================================== */
 #define BOARD_COLOR_BLACK       0x0000U
 #define BOARD_COLOR_WHITE       0xFFFFU

@@ -19,6 +19,7 @@
 #include "bmp_stream.h"
 #include "lvgl_ui.h"
 #include "uart_protocol.h"
+#include "storage.h"
 #include <string.h>
 
 /* ======================================================================
@@ -224,6 +225,15 @@ static void handle_set_qr(const proto_frame_t *fr)
 
     (void)proto_send_ack(fr->cmd, fr->seq, PROTO_STATUS_OK, PROTO_ERR_NONE,
                          s_meta.version, s_meta.modules);
+
+#if BOARD_FLASH_ENABLE
+    /* 内容持久化：写入板载 W25Q16，掉电/复位后上电自动恢复。
+     * 放在 ACK 之后，避免 40~60 ms 的扇区擦除延迟影响上位机的应答体验；
+     * 文本没变时 STORAGE_Save() 内部会直接返回，不产生擦写。 */
+    if (STORAGE_Save(text, text_len, symbology, ecc)) {
+        /* 静默成功：不额外占用状态栏 */
+    }
+#endif
 }
 
 /**
@@ -393,6 +403,43 @@ static void pump_image_stream(void)
 /* ======================================================================
  * 对外接口
  * ==================================================================== */
+#if BOARD_FLASH_ENABLE
+/**
+ * @brief  上电恢复：从 W25Q16 读回上次的文本，重新编码并显示。
+ * @return true = 恢复成功并已上屏
+ * @note   只存文本不存位图：编码是确定性的，同样的文本 + ECC 必然得到同样的
+ *         模块矩阵，重算一次约 3 ms，比存 7 680 字节位图省得多。
+ */
+static bool restore_last_qr(void)
+{
+    storage_saved_t saved;
+    qr_result_t     res;
+
+    (void)memset(&saved, 0, sizeof(saved));
+    if (!STORAGE_Load(&saved) || (!saved.valid)) {
+        return false;
+    }
+
+    res = QR_ServiceEncode(saved.text, saved.text_len,
+                           (qr_symbology_t)saved.symbology,
+                           (qr_ecc_t)saved.ecc, &s_meta);
+    if (res != QR_OK) {
+        return false;
+    }
+
+    QR_BitmapRender(&s_meta);
+    BMP_Init(g_qr_bitmap);
+    UI_ShowQr(&s_meta);
+    {
+        char info[20];
+        build_info_text(info, &s_meta);
+        UI_SetInfo(info);
+    }
+    UI_SetStatus("Restored from flash");
+    return true;
+}
+#endif /* BOARD_FLASH_ENABLE */
+
 void APP_Init(void)
 {
     s_state = APP_STATE_IDLE;
@@ -414,6 +461,13 @@ void APP_Init(void)
     UI_SetInfo("READY");
     UI_SetStatus("Waiting for data...");
     UI_HideQr();
+
+#if BOARD_FLASH_ENABLE
+    /* 掉电恢复：有历史记录就直接显示上一张二维码 */
+    if (STORAGE_Init()) {
+        (void)restore_last_qr();
+    }
+#endif
 
     /* 启动串口单字节中断接收 */
     (void)HAL_UART_Receive_IT(BOARD_UART_HANDLE, &s_rx_byte, 1U);
