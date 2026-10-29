@@ -262,13 +262,23 @@ powershell -ExecutionPolicy Bypass -File tests\firmware\run_tests.ps1
 python tools\check_doxygen.py
 python tools\check_doxygen.py --list      :: 逐条列出缺口
 
-:: 2) 生成 HTML 文档（需要先安装 doxygen）
-doxygen docs\Doxyfile
-:: 输出在 docs/doxygen/html/index.html（已 gitignore）
+:: 2) 生成 HTML 文档（需先安装 doxygen；本机装在 D:\Doxygen）
+D:\Doxygen\doxygen.exe docs\Doxyfile
+:: 输出在 docs/doxygen/html/index.html（已 gitignore，不入库）
 ```
 
 `check_doxygen.py` 统计两类：`Src/*.c` 的函数定义、`Inc/*.h` 的原型声明。
 当前基线：**函数 121/121、原型 55/55 全部有注释**。
+
+`docs/Doxyfile` 是 **Doxygen 的配置文件**（纯文本"说明书"，不是代码）：它规定
+扫哪些目录、认哪些后缀、生成 HTML 还是 PDF、输出到哪、以及检查多严格
+（缺注释是否告警、`@param` 名字对不上是否报错）。调整文档内容只改这个文件，
+重新跑一次 doxygen 即可，源码不用动。
+
+> 本机安装位置：`D:\Doxygen`（doxygen 1.12.0，含命令行 `doxygen.exe` 与
+> 图形界面 `doxywizard.exe`），**未写入 PATH**——需要全局 `doxygen` 命令时，
+> 把 `D:\Doxygen` 加进用户环境变量 PATH 即可。仓库本身只保留 Doxyfile，
+> 不包含 doxygen 二进制。
 
 ---
 

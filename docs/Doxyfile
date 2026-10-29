@@ -1,11 +1,20 @@
 # ======================================================================
-# Doxygen 配置：只覆盖固件源码（STM32F407 QR + LVGL）
+# Doxyfile —— Doxygen 的配置文件（纯文本，一行一个"键 = 值"）
 #
-# 用法（在仓库根目录执行，相对路径按当前目录解析）：
-#     doxygen docs/Doxyfile
-# 输出在 docs/doxygen/html/index.html（已 gitignore，不入库）。
+# 它不是代码、不参与编译，相当于给"文档生成器"的一份说明书：
+#   - 扫哪些目录 ............ INPUT
+#   - 认哪些文件 ............ FILE_PATTERNS
+#   - 生成什么格式 .......... GENERATE_HTML / GENERATE_LATEX
+#   - 输出到哪里 ............ OUTPUT_DIRECTORY
+#   - 检查多严格 ............ WARN_*（缺注释、@param 名字对不上要不要报）
+# 想调整文档内容/样式只改这个文件，重新跑一次 doxygen 即可，源码不用动。
 #
-# Windows 上没有安装包时，可下载官方二进制包解压后直接运行 doxygen.exe。
+# 用法（在仓库根目录执行；相对路径按"当前工作目录"解析）：
+#     D:\Doxygen\doxygen.exe docs\Doxyfile     :: 本机安装位置（doxygen 1.12.0）
+#     doxygen docs\Doxyfile                    :: 已把 D:\Doxygen 加进 PATH 时
+# 产物在 docs/doxygen/html/index.html，已 gitignore，不入库。
+#
+# 没有安装 doxygen 也能读本文件：它把"这个工程对外暴露了什么接口"写在明处。
 # ======================================================================
 
 PROJECT_NAME           = "STM32F407 QR + LVGL"
