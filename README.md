@@ -12,10 +12,11 @@
 | GUI | LVGL **v9.6.0**（固定版本），PARTIAL 局部渲染，RGB565 |
 | 二维码库 | Nayuki **qrcodegen**（C 语言，MIT） |
 | 串口 | USART1，PA9/PA10，默认 115200 8N1 |
-| 工具链 | Keil MDK-ARM 5.24a + ARM Compiler 6.7（AC6） |
-| 固件体积 | Flash 330.4 KiB / 512 KiB；RAM 72.6 KiB / 128 KiB（**无全屏 framebuffer**） |
-| 构建状态 | ✅ `0 Error(s), 0 Warning(s)` |
-| 软件测试 | ✅ 主机端 104 项断言全部通过；导出 BMP 可被 OpenCV 真实解码 |
+| 工具链 | Keil MDK-ARM（原验证 5.24a + AC6.7；本机复验 5.43a + AC6.24） |
+| 固件体积 | Flash **427.4 KiB** / 512 KiB；RAM 72.6 KiB / 128 KiB（**无全屏 framebuffer**）<br>AC6.7 构建为 330.4 KiB；AC6.24 对 LVGL 生成更大代码，仍余约 85 KiB |
+| 构建状态 | ✅ `0 Error(s), 0 Warning(s)`（AC6.24：`Code=415664 RO=21836 RW=120 ZI=74264`） |
+| 软件测试 | ✅ 固件逻辑 104 项断言；上位机 62 项单测（含 10 项图片解码） |
+| 上板状态 | ✅ 已实测：屏幕显示、串口收发、BMP 导出、微信名片码复刻、图片导入 |
 
 ---
 
@@ -55,6 +56,7 @@
 | FR-102 文件校验 | 每帧 CRC16 + 整文件 CRC32 + offset 连续性 + 长度校验 | ✅ 已实现 |
 | FR-103 文件预览 | 上位机预览 + 另存为 | ✅ 已实现 |
 | FR-104 多码制扩展 | 协议预留 `symbology` 枚举，Data Matrix 返回 `UNSUPPORTED` | ⚠️ **未实现**（如实标注） |
+| FR-105 图片导入 | 上位机解码图片中的二维码（含 Micro QR / Data Matrix / 一维码）→ 文本 → `SET_QR` | ✅ 已实现 |
 
 ---
 
@@ -104,7 +106,8 @@ IoT-stm32f407-qr-lvgl-display/
 │   ├── crc.py                         CRC-32/ISO-HDLC
 │   ├── serial_worker.py               串口线程 + 队列
 │   ├── image_receiver.py              BMP 接收状态机
-│   ├── tests/                         unittest 测试
+│   ├── qr_decode.py                   图片二维码解码（Pillow + zxing-cpp）
+│   ├── tests/                         unittest 测试（62 项）
 │   ├── requirements.txt
 │   ├── run.bat
 │   └── README.md
@@ -214,6 +217,12 @@ python main.py
 操作：选择串口 → 连接 → 输入文本（实时显示 UTF-8 字节数）→ 选 ECC → **生成并显示**
 → 需要存档时点 **导出 BMP**，校验通过后可预览、另存为。
 
+**导入图片**（可选功能，需要 `Pillow` + `zxing-cpp`）：点 **导入图片**，选一张带二维码
+的图片（截图、微信名片、文档插图都行），上位机会把图中的码解成文本填入输入框；
+若已连接串口，会**自动接着发送** `SET_QR`，屏幕立即换成新的码。支持 QR / Micro QR /
+Data Matrix / Aztec / PDF417 / 常见一维码的**解码**，但设备最终只会生成 QR（见
+[host/README.md](host/README.md#43-从图片导入二维码图片--文本)）。
+
 ### 4.4 一键跑固件逻辑测试（无需硬件）
 
 ```powershell
@@ -310,18 +319,29 @@ UART 中断里只做 `ring_push(byte)` 并重新挂起接收；帧解析、二�
 | — | 空文本 / 257 字节 / 含 NUL / ECC=4 / DataMatrix 错误码正确 | ✅ |
 | — | **OpenCV 真实解码导出的 BMP**：`Hello 123`、URL、中文 UTF-8 逐字节一致 | ✅ |
 | 上位机 | `host/tests` 协议、CRC、BMP、图片接收异常用例 | ✅ |
+| 上位机 | 图片导入：示例图解出 `Hello 123`、缩小一半、双码计数、3 类异常提示 | ✅ 62 项全部通过 |
 
-### 7.2 必须上板验证（当前未测试，不得视为通过）
+### 7.2 上板实测结果
+
+以下均在实物（STM32F407VET6 核心板 + 2.4" 240×320 ST7789 + CH340 USB-TTL + ST-Link）上完成：
+
+| 编号 | 内容 | 结果 |
+|:--|:--|:--|
+| T-101 | 上电 LCD 初始化、白底、标题栏、无花屏 | ✅ 默认 `board_config.h` 参数直接正常，无需调整 |
+| T-103 | 屏幕二维码被扫码器识别 | ⚠️ 部分：设备导出的 BMP 反解逐字节一致、微信名片码上板复刻成功；**手机实扫未实测** |
+| T-107 | 串口真实传输 7742 B + CRC32 校验 | ✅ `BEGIN/END` 一致，CRC32 `0xDB95AC43` 校验通过 |
+| T-111 | LVGL 刷新无闪烁、对象/内存稳定 | ✅ 界面、状态栏刷新正常 |
+
+修复过程中发现并解决的上板缺陷见 [已知限制 3.1](docs/06-known-limitations.md)
+（LVGL I1 位图在 `RGB565_SWAPPED` 目标下渲染为全黑）。
+
+### 7.3 仍需实机确认（不得视为通过）
 
 | 编号 | 内容 | 说明 |
 |:--|:--|:--|
-| T-101 | 上电 LCD 初始化、白底、标题、无花屏 | 需实物 |
-| T-103 | `Hello 123` 显示后用**独立扫码器/手机**识别 | 需实物 |
-| T-109 | 中文二维码在**两种不同扫码软件**中的解码结果 | 需实物；OpenCV 已能正确解码，但不能代表手机 App |
-| T-107 | 串口真实传输 7742 B + CRC32 校验 | 需实物 |
-| T-110 | 连续生成并导出 50 次 | 需实物 |
-| T-111/T-113 | LVGL 刷新无闪烁、对象/内存稳定 | 需实物 |
-| — | LCD 颜色顺序（BGR/RGB）、是否反色、行列偏移 | 需按实屏确认（见下节开关） |
+| T-109 | 中文二维码在**两种不同扫码软件**中的解码结果 | 待测；qrcodegen 不写 ECI，手机 App 是否按 UTF-8 解释不保证 |
+| T-110 | 连续生成并导出 50 次 | 待测（长时间稳定性） |
+| T-113 | 长时间运行的内存/句柄稳定性 | 待测 |
 
 完整记录见 [测试记录](docs/04-test-record.md)。
 
@@ -329,7 +349,7 @@ UART 中断里只做 `ring_push(byte)` 并重新挂起接收；帧解析、二�
 
 ## 8. 上板需要确认的 4 个开关
 
-`firmware/Core/Inc/board_config.h` 中：
+`firmware/Core/Inc/board_config.h` 中（**本机实屏验证：四项默认值直接可用**）：
 
 | 宏 | 默认 | 现象不对时怎么改 |
 |:--|:--|:--|
@@ -357,6 +377,9 @@ UART 中断里只做 `ring_push(byte)` 并重新挂起接收；帧解析、二�
 6. **USB 未使用**：板载 Micro USB 是 USB Device（PA11/PA12），本版本未实现 USB CDC，
    串口走外部 USB-TTL。
 7. **图片流期间不响应 SET_QR**：返回 `BUSY`（协议允许的推荐行为）。
+8. **二维码显示经过 flush 覆盖层**：LVGL v9.6 的 I1 源在 `RGB565_SWAPPED` 目标格式下
+   会把位图渲染成全黑（上板实测），因此在 `disp_flush_cb()` 中按 `g_qr_bitmap` 重算该
+   区域像素。原因、取舍与验证见 [已知限制 3.1](docs/06-known-limitations.md)。
 
 ---
 
@@ -369,6 +392,8 @@ UART 中断里只做 `ring_push(byte)` 并重新挂起接收；帧解析、二�
 | STM32F4 HAL | `STMicroelectronics/stm32f4xx_hal_driver` commit `1f6451c` | BSD-3-Clause（`LICENSE.md`） |
 | CMSIS Device F4 | `STMicroelectronics/cmsis_device_f4` commit `9192c7b` | Apache-2.0 |
 | pyserial | ≥ 3.5 | BSD-3-Clause |
+| Pillow | ≥ 10.0（仅上位机「导入图片」） | HPND |
+| zxing-cpp | ≥ 2.3（仅上位机「导入图片」） | Apache-2.0 |
 
 > LVGL 版本已固定为 v9.6.0 并随仓库提交源码，**不依赖网络**，也不跟随 master。
 
@@ -391,78 +416,7 @@ UART 中断里只做 `ring_push(byte)` 并重新挂起接收；帧解析、二�
 - **加码制**：在 `qr_service.c` 里按 `qr_symbology_t` 分派，BMP/协议/界面无需改动。
 - **改协议**：`uart_protocol.h` + `host/protocol.py` 必须同步，且更新
   `docs/02-uart-protocol.md` 的版本号。
-
----
-
-## 13. 代码托管与合并
-
-**当前代码已推送到**：<https://github.com/zyh4188ya/IoT-stm32f407-qr-lvgl-display>
-（分支 `main`，3 个 commit，1640 个文件，HEAD `9ee310b`）
-
-### 13.1 为什么这是一个"独立同名仓库"而不是 GitHub fork
-
-目标上游 <https://github.com/hihukayo/IoT-stm32f407-qr-lvgl-display> 目前是**空仓库**
-（0 个 commit）。GitHub 的 fork 接口对空仓库直接拒绝：
-
-```
-403: The repository exists, but it contains no Git content.
-     Empty repositories cannot be forked.
-```
-
-同理，**无法直接开 Pull Request**：PR 需要 base 仓库至少有一个 commit，且 head 必须是
-base 的 fork（API 实测返回 `422 Validation Failed, field base/head invalid`）。
-
-因此在 `zyh4188ya` 名下创建了同名仓库并推送，代码与历史完整，等上游有内容后即可
-正常 fork / PR。
-
-### 13.2 仓库主人（hihukayo）合并方式
-
-**方式 A：命令行（推荐，保留完整提交历史）**
-
-```bash
-git clone https://github.com/zyh4188ya/IoT-stm32f407-qr-lvgl-display.git
-cd IoT-stm32f407-qr-lvgl-display
-git remote set-url origin https://github.com/hihukayo/IoT-stm32f407-qr-lvgl-display.git
-git push -u origin main
-```
-
-**方式 B：GitHub 网页「Import repository」**
-
-上游仓库 → `Settings` 最下方 → `Import repository`，源填
-`https://github.com/zyh4188ya/IoT-stm32f407-qr-lvgl-display`，导入后即为完整副本
-（注意：此方式会以单一初始提交的形式导入，不保留逐条提交历史）。
-
-**方式 C：先给上游一个初始 commit，再 fork + PR**
-
-```bash
-# 在 hihukayo 的仓库里先造一个 commit（例如加一个空 README）
-# 然后在本仓库执行：
-git remote add upstream https://github.com/hihukayo/IoT-stm32f407-qr-lvgl-display.git
-git fetch upstream
-git rebase upstream/main        # 若历史无关则用 --allow-unrelated-histories 合并
-git push origin main
-# 之后在 GitHub 上从 zyh4188ya 的仓库发起 PR 即可
-```
-
-### 13.3 后续自行推送
-
-```powershell
-# 已登录的账号对 zyh4188ya 的仓库有写权限
-git push origin main
-```
-
-若直连 `github.com:443` 被重置，可走本地代理：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File tools\push_to_github.ps1
-```
-
-脚本会先试直连，失败自动改走 `http://127.0.0.1:7890`（可用 `-ProxyUrl` 指定），
-并通过 Git Credential Manager 使用 Windows 凭据管理器里已保存的 GitHub 账号。
-
-### 13.4 远程配置
-
-| remote | 地址 | 用途 |
-|:--|:--|:--|
-| `origin` | `https://github.com/zyh4188ya/IoT-stm32f407-qr-lvgl-display.git` | 当前推送目标（可写） |
-| `upstream` | `https://github.com/hihukayo/IoT-stm32f407-qr-lvgl-display.git` | 目标上游（当前只读、为空） |
+- **改界面布局**：二维码矩形的位置由 `lvgl_ui.c` 的 `UI_QR_Y` 与 `UI_QrOverlay()`
+  共同决定；**移动图像控件时必须同步改这两处**，否则屏幕上的码会被画到错误位置。
+- **改 LVGL 版本**：升级后先验证 I1 位图能否正常渲染；若已修复，可删掉 flush 覆盖层
+  （`lv_port_disp.c` 里的 `UI_QrOverlay()` 调用）以及 `lvgl_ui.c` 中的实现。
