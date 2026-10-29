@@ -30,6 +30,11 @@
 该 BMP 文件大小为 **7 742 字节**、1bpp、无压缩，已用 OpenCV `QRCodeDetector`
 真实解码为 `Hello 123`。
 
+**上板实拍**（STM32F407VET6 核心板 + 2.4" 240×320 ST7789，串口发送 `Hello 123`，
+ECC=M，固件回 `V1 M 21x21`，状态栏 `QR code generated`）：
+
+![上板实拍](docs/images/screenshot.png)
+
 ---
 
 ## 1. 功能一览
@@ -213,6 +218,8 @@ python main.py
 ```
 
 或直接双击 `host\run.bat`。
+
+![上位机界面](docs/images/GUI.png)
 
 操作：选择串口 → 连接 → 输入文本（实时显示 UTF-8 字节数）→ 选 ECC → **生成并显示**
 → 需要存档时点 **导出 BMP**，校验通过后可预览、另存为。
