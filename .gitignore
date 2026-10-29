@@ -4,6 +4,10 @@
 firmware/MDK-ARM/Objects/
 firmware/MDK-ARM/Listings/
 firmware/MDK-ARM/build.log
+# Keil 打开工程时自动生成的本机配置（调试器选择、窗口布局、器件调试脚本）
+firmware/MDK-ARM/DebugConfig/
+firmware/MDK-ARM/RTE/
+*.uvoptx
 *.uvguix.*
 *.uvoptx.bak
 *.bak
