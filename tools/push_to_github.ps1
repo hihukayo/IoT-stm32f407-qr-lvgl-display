@@ -15,7 +15,7 @@
       b) 让仓库所有者在 GitHub 上把该账号加为 Collaborator（Settings → Collaborators）。
 
 .PARAMETER RemoteUrl
-    目标仓库地址，默认本项目的 GitHub 地址。
+    目标仓库地址，默认为 zyh4188ya 名下的同名仓库（当前唯一可写目标）。
 
 .PARAMETER Branch
     要推送的本地分支，默认 main。
@@ -27,7 +27,7 @@
     powershell -ExecutionPolicy Bypass -File tools/push_to_github.ps1
 #>
 param(
-    [string]$RemoteUrl = "https://github.com/hihukayo/IoT-stm32f407-qr-lvgl-display.git",
+    [string]$RemoteUrl = "https://github.com/zyh4188ya/IoT-stm32f407-qr-lvgl-display.git",
     [string]$Branch = "main",
     [string]$ProxyUrl = "http://127.0.0.1:7890"
 )

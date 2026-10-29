@@ -394,33 +394,75 @@ UART 中断里只做 `ring_push(byte)` 并重新挂起接收；帧解析、二�
 
 ---
 
-## 13. 推送到 GitHub
+## 13. 代码托管与合并
 
-本仓库目标地址：<https://github.com/hihukayo/IoT-stm32f407-qr-lvgl-display>
+**当前代码已推送到**：<https://github.com/zyh4188ya/IoT-stm32f407-qr-lvgl-display>
+（分支 `main`，3 个 commit，1640 个文件，HEAD `9ee310b`）
+
+### 13.1 为什么这是一个"独立同名仓库"而不是 GitHub fork
+
+目标上游 <https://github.com/hihukayo/IoT-stm32f407-qr-lvgl-display> 目前是**空仓库**
+（0 个 commit）。GitHub 的 fork 接口对空仓库直接拒绝：
+
+```
+403: The repository exists, but it contains no Git content.
+     Empty repositories cannot be forked.
+```
+
+同理，**无法直接开 Pull Request**：PR 需要 base 仓库至少有一个 commit，且 head 必须是
+base 的 fork（API 实测返回 `422 Validation Failed, field base/head invalid`）。
+
+因此在 `zyh4188ya` 名下创建了同名仓库并推送，代码与历史完整，等上游有内容后即可
+正常 fork / PR。
+
+### 13.2 仓库主人（hihukayo）合并方式
+
+**方式 A：命令行（推荐，保留完整提交历史）**
+
+```bash
+git clone https://github.com/zyh4188ya/IoT-stm32f407-qr-lvgl-display.git
+cd IoT-stm32f407-qr-lvgl-display
+git remote set-url origin https://github.com/hihukayo/IoT-stm32f407-qr-lvgl-display.git
+git push -u origin main
+```
+
+**方式 B：GitHub 网页「Import repository」**
+
+上游仓库 → `Settings` 最下方 → `Import repository`，源填
+`https://github.com/zyh4188ya/IoT-stm32f407-qr-lvgl-display`，导入后即为完整副本
+（注意：此方式会以单一初始提交的形式导入，不保留逐条提交历史）。
+
+**方式 C：先给上游一个初始 commit，再 fork + PR**
+
+```bash
+# 在 hihukayo 的仓库里先造一个 commit（例如加一个空 README）
+# 然后在本仓库执行：
+git remote add upstream https://github.com/hihukayo/IoT-stm32f407-qr-lvgl-display.git
+git fetch upstream
+git rebase upstream/main        # 若历史无关则用 --allow-unrelated-histories 合并
+git push origin main
+# 之后在 GitHub 上从 zyh4188ya 的仓库发起 PR 即可
+```
+
+### 13.3 后续自行推送
+
+```powershell
+# 已登录的账号对 zyh4188ya 的仓库有写权限
+git push origin main
+```
+
+若直连 `github.com:443` 被重置，可走本地代理：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools\push_to_github.ps1
 ```
 
-脚本会自动处理两件本机特有的麻烦事：
+脚本会先试直连，失败自动改走 `http://127.0.0.1:7890`（可用 `-ProxyUrl` 指定），
+并通过 Git Credential Manager 使用 Windows 凭据管理器里已保存的 GitHub 账号。
 
-1. **网络**：本机直连 `github.com:443` 常被重置，脚本会先试直连，失败后自动改走
-   本地代理 `http://127.0.0.1:7890`（可用 `-ProxyUrl` 指定别的端口）。
-2. **凭据**：通过 Git Credential Manager 使用 Windows 凭据管理器里已保存的 GitHub 账号。
+### 13.4 远程配置
 
-> ⚠️ **已知问题**：在本机首次尝试推送时返回
-> `403 Permission to hihukayo/IoT-stm32f407-qr-lvgl-display.git denied to zyh4188ya`，
-> 即**当前登录的 GitHub 账号对该仓库没有写权限**（不是网络问题）。
-> 解决办法二选一：
-> - 让仓库所有者 `hihukayo` 把 `zyh4188ya` 加为 Collaborator
->   （仓库 Settings → Collaborators → Add people）；
-> - 或改用 `hihukayo` 账号登录后推送：先 `git credential-manager erase` 清掉旧凭据，
->   再执行脚本，按提示在浏览器中授权。
-
-手动推送（等价命令）：
-
-```bash
-git remote add origin https://github.com/hihukayo/IoT-stm32f407-qr-lvgl-display.git
-# 直连不通时加代理：
-git -c http.proxy=http://127.0.0.1:7890 push -u origin main
-```
+| remote | 地址 | 用途 |
+|:--|:--|:--|
+| `origin` | `https://github.com/zyh4188ya/IoT-stm32f407-qr-lvgl-display.git` | 当前推送目标（可写） |
+| `upstream` | `https://github.com/hihukayo/IoT-stm32f407-qr-lvgl-display.git` | 目标上游（当前只读、为空） |
