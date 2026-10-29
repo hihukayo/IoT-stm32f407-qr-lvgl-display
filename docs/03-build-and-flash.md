@@ -102,7 +102,8 @@ python tools\gen_keil_project.py
 5. 板载 LED D2（PA1）1 Hz 闪烁。
 
 若黑屏但背光亮：检查 SPI/CS/DC 接线与 `BOARD_LCD_*` 开关（见接线文档第 6 节）。
-若全白：检查是否发了 `INVON`（`BOARD_LCD_INVERT_COLOR`）。
+若全白或整屏像负片（白底变深蓝、标题栏发棕）：检查 `BOARD_LCD_INVERT_COLOR` 与
+`BOARD_LCD_MADCTL_BGR`——**本项目实屏两者都是 `0`**，照抄别的模块的 `1` 会出现负片效果。
 
 ## 4. 上位机环境
 

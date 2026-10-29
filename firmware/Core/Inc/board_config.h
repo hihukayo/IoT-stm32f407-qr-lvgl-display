@@ -105,10 +105,15 @@ extern SPI_HandleTypeDef hspi2;            /**< SPI2 句柄，定义于 main.c *
 #define BOARD_LCD_X_OFFSET      0           /**< 列偏移，部分 240x320 模块为 0 */
 #define BOARD_LCD_Y_OFFSET      0           /**< 行偏移，部分 240x320 模块为 0 */
 
-/** 1 = MADCTL 使用 BGR 顺序（IPS 屏常见），0 = RGB。颜色不对时取反。 */
-#define BOARD_LCD_MADCTL_BGR    1
-/** 1 = 上电发送 INVON（0x21）开启反色，多数 IPS 模块需要；颜色反了时取反。 */
-#define BOARD_LCD_INVERT_COLOR  1
+/** 1 = MADCTL 使用 BGR 顺序（IPS 屏常见），0 = RGB。颜色不对时取反。
+ *  本项目实测的 2.4" 模块为 **RGB 顺序**：置 1 时深蓝标题栏会变成棕色
+ *  （`#1B2A41` 交换红蓝即 `#412A1B`），故默认取 0。 */
+#define BOARD_LCD_MADCTL_BGR    0
+/** 1 = 上电发送 INVON（0x21）开启反色，0 = 不发送。
+ *  本项目实测的 2.4" 240x320 ST7789 模块**不需要**反色：置 1 会出现"白底变深蓝、
+ *  黑色模块变白"的整屏负片效果（详见 docs/06-known-limitations.md 第 3.1 节后记）。
+ *  若你的模块颜色恰好相反（白底变黑底），再把它改回 1。 */
+#define BOARD_LCD_INVERT_COLOR  0
 
 /** 固件启动时的屏幕旋转：0=竖屏，1=横屏，2=竖屏翻转，3=横屏翻转。 */
 #define BOARD_LCD_ROTATION      0

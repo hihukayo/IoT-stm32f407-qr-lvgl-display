@@ -33,7 +33,9 @@
 **上板实拍**（STM32F407VET6 核心板 + 2.4" 240×320 ST7789，串口发送 `Hello 123`，
 ECC=M，固件回 `V1 M 21x21`，状态栏 `QR code generated`）：
 
-<img src="docs/images/screenshot.png" width="360" alt="上板实拍：核心板与 ST7789 屏幕显示二维码">
+<p align="center">
+  <img src="docs/images/screenshot.jpg" width="360" alt="上板实拍：核心板与 ST7789 屏幕显示二维码">
+</p>
 
 ---
 
@@ -219,7 +221,9 @@ python main.py
 
 或直接双击 `host\run.bat`。
 
-![上位机界面](docs/images/GUI.png)
+<p align="center">
+  <img src="docs/images/GUI.png" width="820" alt="上位机界面">
+</p>
 
 操作：选择串口 → 连接 → 输入文本（实时显示 UTF-8 字节数）→ 选 ECC → **生成并显示**
 → 需要存档时点 **导出 BMP**，校验通过后可预览、另存为。
@@ -334,7 +338,7 @@ UART 中断里只做 `ring_push(byte)` 并重新挂起接收；帧解析、二�
 
 | 编号 | 内容 | 结果 |
 |:--|:--|:--|
-| T-101 | 上电 LCD 初始化、白底、标题栏、无花屏 | ✅ 默认 `board_config.h` 参数直接正常，无需调整 |
+| T-101 | 上电 LCD 初始化、白底、标题栏、无花屏 | ✅ 校正 `MADCTL_BGR=0` / `INVERT_COLOR=0` 后：白底、深蓝标题栏、浅灰状态栏，无花屏 |
 | T-103 | 屏幕二维码被扫码器识别 | ⚠️ 部分：设备导出的 BMP 反解逐字节一致、微信名片码上板复刻成功；**手机实扫未实测** |
 | T-107 | 串口真实传输 7742 B + CRC32 校验 | ✅ `BEGIN/END` 一致，CRC32 `0xDB95AC43` 校验通过 |
 | T-111 | LVGL 刷新无闪烁、对象/内存稳定 | ✅ 界面、状态栏刷新正常 |
@@ -356,12 +360,13 @@ UART 中断里只做 `ring_push(byte)` 并重新挂起接收；帧解析、二�
 
 ## 8. 上板需要确认的 4 个开关
 
-`firmware/Core/Inc/board_config.h` 中（**本机实屏验证：四项默认值直接可用**）：
+`firmware/Core/Inc/board_config.h` 中。**下表的默认值已按实屏校正并验证**
+（2.4" 240×320 ST7789：RGB 顺序、不需要 INVON）：
 
 | 宏 | 默认 | 现象不对时怎么改 |
 |:--|:--|:--|
-| `BOARD_LCD_MADCTL_BGR` | `1` | 红蓝互换 → 改成 `0` |
-| `BOARD_LCD_INVERT_COLOR` | `1` | 颜色像反片（白变黑）→ 改成 `0` |
+| `BOARD_LCD_MADCTL_BGR` | `0` | 红色显示成蓝色、深蓝标题栏发棕 → 改成 `1` |
+| `BOARD_LCD_INVERT_COLOR` | `0` | 白底变深蓝、整体像负片 → 改成 `1` |
 | `BOARD_LCD_X_OFFSET` / `BOARD_LCD_Y_OFFSET` | `0` / `0` | 图像整体偏移/边缘花屏 → 试 0/80 等常见值 |
 | `BOARD_LCD_SPI_PRESCALER` | `/_4`（10.5 MHz） | 花屏/闪烁 → 降到 `/_8`；稳定后可提到 `/_2` |
 
