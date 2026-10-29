@@ -33,6 +33,10 @@ static lv_obj_t *s_title  = NULL;   /**< 标题文本 */
 static lv_obj_t *s_info   = NULL;   /**< 右上角信息（版本/ECC/模块数）*/
 static lv_obj_t *s_status = NULL;   /**< 底部状态文本 */
 static lv_obj_t *s_qr     = NULL;   /**< 二维码图像控件 */
+static bool      s_qr_shown = false;/**< 二维码是否应显示（供 flush 覆盖判断）*/
+
+/** @brief 二维码图像在本屏中的左上角 y 坐标（标题栏高度）。 */
+#define UI_QR_Y   40
 
 /**
  * @brief 二维码图像描述符：直接引用 `g_qr_bitmap`，不复制、不申请内存。
@@ -160,6 +164,7 @@ void UI_ShowQr(const qr_meta_t *meta)
 
     /* 重新设置源，确保解码/缓存状态刷新后再重绘 */
     lv_image_set_src(s_qr, &s_qr_dsc);
+    s_qr_shown = true;
     lv_obj_remove_flag(s_qr, LV_OBJ_FLAG_HIDDEN);
     lv_obj_invalidate(s_qr);
 }
@@ -169,6 +174,7 @@ void UI_HideQr(void)
     if (s_qr == NULL) {
         return;
     }
+    s_qr_shown = false;
     lv_obj_add_flag(s_qr, LV_OBJ_FLAG_HIDDEN);
     lv_obj_invalidate(s_qr);
 }
@@ -179,5 +185,52 @@ void UI_RefreshQr(void)
         return;
     }
     lv_image_set_src(s_qr, &s_qr_dsc);
+    s_qr_shown = true;
     lv_obj_invalidate(s_qr);
+}
+
+/* ======================================================================
+ * flush 阶段的位图覆盖（保证屏幕所见 = 导出所得）
+ * ====================================================================== */
+bool UI_QrOverlay(lv_area_t *area, uint8_t *px_map, uint32_t stride)
+{
+    int32_t x1;
+    int32_t y1;
+    int32_t x2;
+    int32_t y2;
+    int32_t x;
+    int32_t y;
+
+    if ((!s_qr_shown) || (area == NULL) || (px_map == NULL)) {
+        return false;
+    }
+
+    /* 与本屏二维码矩形求交集：x 0..239，y 40..279 */
+    x1 = (area->x1 > 0) ? area->x1 : 0;
+    y1 = (area->y1 > UI_QR_Y) ? area->y1 : UI_QR_Y;
+    x2 = (area->x2 < (int32_t)(QR_BITMAP_WIDTH - 1U)) ? area->x2 : (int32_t)(QR_BITMAP_WIDTH - 1U);
+    y2 = (area->y2 < (UI_QR_Y + (int32_t)(QR_BITMAP_HEIGHT - 1U))) ?
+         area->y2 : (UI_QR_Y + (int32_t)(QR_BITMAP_HEIGHT - 1U));
+
+    if ((x1 > x2) || (y1 > y2)) {
+        return false;
+    }
+
+    for (y = y1; y <= y2; y++) {
+        const uint8_t *src_row = &g_qr_bitmap[(uint32_t)(y - UI_QR_Y) * QR_BITMAP_STRIDE];
+        uint8_t *dst = px_map
+                     + ((uint32_t)(y - area->y1) * stride)
+                     + ((uint32_t)(x1 - area->x1) * 2U);
+
+        for (x = x1; x <= x2; x++) {
+            uint8_t bit = (uint8_t)((src_row[(uint32_t)x >> 3] >> (7U - ((uint32_t)x & 7U))) & 1U);
+            /* 黑 0x0000 / 白 0xFFFF：字节序两种排法数值相同，故无需交换 */
+            uint16_t color = (bit != 0U) ? 0xFFFFU : 0x0000U;
+            dst[0] = (uint8_t)(color & 0xFFU);
+            dst[1] = (uint8_t)(color >> 8);
+            dst += 2;
+        }
+    }
+
+    return true;
 }

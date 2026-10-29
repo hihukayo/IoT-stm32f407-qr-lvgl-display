@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file    lv_port_disp.c
  * @brief   LVGL v9.6.0 -> ST7789 显示移植层实现。
  * @details
@@ -13,6 +13,7 @@
  */
 
 #include "lv_port_disp.h"
+#include "lvgl_ui.h"
 #include "lcd_st7789.h"
 #include "board_config.h"
 
@@ -65,6 +66,15 @@ static void disp_flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t *px
 
     buf = lv_display_get_buf_active(disp);
     stride = (buf != NULL) ? buf->header.stride : (w * 2U);
+
+    /* 二维码区域：按 1bpp 位图重新生成像素，绕开 LVGL 的 I1 源混色路径
+     * （该路径在本工程配置下会把整张位图渲染成全黑，见 lvgl_ui.c 注释）。 */
+    /* 二维码区域：按 1bpp 位图重新生成像素，绕开 LVGL 的 I1 源混色路径
+     * （该路径在本工程配置下会把整张位图渲染成全黑，见 lvgl_ui.c 注释）。 */
+    {
+        lv_area_t qr_area = *area;
+        (void)UI_QrOverlay(&qr_area, px_map, stride);
+    }
 
     /* 阻塞式写入；返回时数据已全部进入 ST7789 的 GRAM */
     ST7789_BlitRGB565((uint16_t)area->x1, (uint16_t)area->y1,

@@ -66,6 +66,22 @@ void UI_RefreshQr(void);
  */
 void UI_SetError(const char *text);
 
+/**
+ * @brief  在 LVGL flush 阶段用 g_qr_bitmap 强制覆盖二维码区域的像素。
+ * @param  area      本次要刷新的闭区间区域（屏幕坐标）
+ * @param  px_map    该区域的像素起始地址（RGB565_SWAPPED）
+ * @param  stride    行跨度（字节）
+ * @return true 表示本次 flush 落在二维码区域内且已被覆盖，false 表示未处理
+ *
+ * @note   存在原因：LVGL v9.6 在本工程的配置下（RGB565_SWAPPED 目标格式 +
+ *         静态 lv_image_dsc_t 的 I1 源）会把整张位图渲染成全黑（源位图被当作
+ *         全 0 读取）。真实位图 `g_qr_bitmap` 本身是正确的——BMP 导出即由它
+ *         原样流出，扫码可解。为保证"屏幕所见 = 导出所得"，在数据真正送上屏
+ *         之前按位重新生成该区域的像素。黑白两色在字节序交换下数值不变
+ *         （0x0000 / 0xFFFF），因此这里无需区分 RGB565 与 RGB565_SWAPPED。
+ */
+bool UI_QrOverlay(lv_area_t *area, uint8_t *px_map, uint32_t stride);
+
 #ifdef __cplusplus
 }
 #endif
