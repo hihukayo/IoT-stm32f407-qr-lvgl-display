@@ -74,6 +74,57 @@ python tools\gen_keil_project.py
 > 若你的 Keil 版本没有该选项，可以改装 `Keil MDK 5.3x` 以上，或用 VS Code 阅读源码。
 > 不建议给 .c 文件加 BOM（部分工具链/脚本会误判文件类型）。
 
+## 2.5 与 STM32CubeMX 的关系（**不要在此目录生成代码**）
+
+### 2.5.1 本工程不是 CubeMX 生成的
+
+代码**沿用了 CubeMX 的命名与骨架**（`MX_xxx_Init`、`SystemClock_Config`、`Error_Handler`），
+但全部是手写的。判断依据：
+
+| 判断依据 | 真 CubeMX 工程 | 本工程 |
+|:--|:--|:--|
+| `.mxproject`（工程缓存） | 有 | **无** |
+| `/* USER CODE BEGIN/END */` 标记 | 每个生成文件都有 | **一个都没有** |
+| 文件头 | ST 版权 + `@brief : Main program body` | 自写 Doxygen、中文注释 |
+| 源文件构成 | 只有 CubeMX 生成的那几个 | 另有 `board_config.h`、`app.c`、`storage.c`、`lcd_st7789.c`、`lvgl_ui.c` 等业务模块 |
+
+`firmware/QR_LVGL_F407.ioc` 是随工程提供的**参考配置**（引脚 / 时钟 / 外设），
+供阅读与核对，不是"生成源"。
+
+### 2.5.2 点 `GENERATE CODE` 会发生什么
+
+CubeMX 只认识它自己生成的文件清单：
+
+| 动作 | 文件 |
+|:--|:--|
+| **整文件覆盖** | `Core/Src/main.c`、`stm32f4xx_hal_msp.c`、`stm32f4xx_it.c`、`system_stm32f4xx.c`、启动文件、`Drivers/` |
+| **重新生成** | `MDK-ARM/QR_LVGL_F407.uvprojx`、`.mxproject` |
+| **不碰**（磁盘上仍在） | `app.c`、`storage.c`、`lcd_st7789.c`、`lvgl_ui.c`、`qr_*.c`、`uart_protocol.c`… |
+
+后果：
+
+1. `main.c` 里没有 `USER CODE` 块 → `ST7789_Init()` / `LV_Port_Init()` / `APP_Init()`
+   全部丢失，只剩空 `while(1)`；
+2. `.uvprojx` 被重新生成 → 工程里 **512 个源文件**（LVGL + qrcodegen + 业务模块）
+   从项目树消失，编译立即报大量 `undefined symbol`；
+3. `.ioc` 里没有 `MX_SPI1_Init` 的原始配置时，SPI1（W25Q16）的 GPIO 复用会丢失，
+   掉电保存静默失效（本仓库的 `.ioc` 已补上 SPI1，但仍不建议原地生成）。
+
+### 2.5.3 想改引脚 / 时钟时的安全做法
+
+```bat
+:: 1) 把 .ioc 复制到一个空目录
+mkdir D:\tmp\mxcheck && copy firmware\QR_LVGL_F407.ioc D:\tmp\mxcheck\
+:: 2) 在 CubeMX 里改完，生成到那个空目录
+:: 3) 只比对三个文件，手工把差异合并回来
+fc D:\tmp\mxcheck\Core\Src\main.c            firmware\Core\Src\main.c
+fc D:\tmp\mxcheck\Core\Src\stm32f4xx_hal_msp.c firmware\Core\Src\stm32f4xx_hal_msp.c
+```
+
+即"**把 CubeMX 当配置计算器，而不是代码生成器**"：它算出的时钟/引脚参数落到
+`board_config.h` + `main.c` + `stm32f4xx_hal_msp.c`，其余代码保持不动。
+万一误操作，先 `git checkout .` 回滚，再重新编译。
+
 ## 3. 烧录
 
 ### 3.1 ST-Link / DAP-Link（推荐）
@@ -132,7 +183,7 @@ cd host
 python -m unittest discover -s tests -v
 ```
 
-上位机单元测试（52 项，不需要 pyserial 与硬件）。
+上位机单元测试（64 项，不需要 pyserial 与硬件）。
 
 ## 6. 常见问题
 

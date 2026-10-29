@@ -16,8 +16,15 @@
 | 固件体积 | Flash **431 KiB** / 512 KiB；RAM **73.4 KiB** / 128 KiB（**无全屏 framebuffer**）<br>AC6.7 构建为 330.4 KiB；AC6.24 对 LVGL 生成更大代码，仍余约 80 KiB |
 | 构建状态 | ✅ `0 Error(s), 0 Warning(s)`（AC6.24：`Code=419312 RO=21836 RW=120 ZI=75160`） |
 | 掉电保存 | 板载 **W25Q16**（SPI1）保存文本 + ECC，上电自动恢复上一次的二维码 |
-| 软件测试 | ✅ 固件逻辑 104 项断言；上位机 62 项单测（含 10 项图片解码） |
+| 软件测试 | ✅ 固件逻辑 104 项断言；上位机 64 项单测（含 10 项图片解码） |
 | 上板状态 | ✅ 已实测：屏幕显示、串口收发、BMP 导出、微信名片码复刻、图片导入、掉电恢复 |
+
+> ⚠️ **关于 STM32CubeMX**：本工程代码是**手写**的，只是沿用了 CubeMX 的命名与骨架
+> （`MX_xxx_Init` / `SystemClock_Config`），**没有** `.mxproject`，也**没有**
+> `/* USER CODE BEGIN */` 标记。`firmware/QR_LVGL_F407.ioc` 仅为引脚/时钟的
+> **参考配置**。**不要在该目录下点 `GENERATE CODE`**——它会覆盖 `main.c`、`msp.c`、
+> `it.c`，并把 512 个源文件从 Keil 工程里抹掉。详见
+> [文档 2.5 节](docs/03-build-and-flash.md)。
 
 ---
 
@@ -118,7 +125,7 @@ IoT-stm32f407-qr-lvgl-display/
 │   ├── serial_worker.py               串口线程 + 队列
 │   ├── image_receiver.py              BMP 接收状态机
 │   ├── qr_decode.py                   图片二维码解码（Pillow + zxing-cpp）
-│   ├── tests/                         unittest 测试（62 项）
+│   ├── tests/                         unittest 测试（64 项）
 │   ├── requirements.txt
 │   ├── run.bat
 │   └── README.md
@@ -334,7 +341,7 @@ UART 中断里只做 `ring_push(byte)` 并重新挂起接收；帧解析、二�
 | — | 空文本 / 257 字节 / 含 NUL / ECC=4 / DataMatrix 错误码正确 | ✅ |
 | — | **OpenCV 真实解码导出的 BMP**：`Hello 123`、URL、中文 UTF-8 逐字节一致 | ✅ |
 | 上位机 | `host/tests` 协议、CRC、BMP、图片接收异常用例 | ✅ |
-| 上位机 | 图片导入：示例图解出 `Hello 123`、缩小一半、双码计数、3 类异常提示 | ✅ 62 项全部通过 |
+| 上位机 | 图片导入：示例图解出 `Hello 123`、缩小一半、双码计数、3 类异常提示 | ✅ 64 项全部通过 |
 
 ### 7.2 上板实测结果
 
@@ -346,8 +353,8 @@ UART 中断里只做 `ring_push(byte)` 并重新挂起接收；帧解析、二�
 | T-103 | 屏幕二维码被扫码器识别 | ⚠️ 部分：设备导出的 BMP 反解逐字节一致、微信名片码上板复刻成功；**手机实扫未实测** |
 | T-107 | 串口真实传输 7742 B + CRC32 校验 | ✅ `BEGIN/END` 一致，CRC32 `0xDB95AC43` 校验通过 |
 | T-111 | LVGL 刷新无闪烁、对象/内存稳定 | ✅ 界面、状态栏刷新正常 |
-| T-114 | 掉电/复位后恢复上一次的二维码 | ✅ 复位后屏幕自动显示同一张码，状态栏 `Restored from flash`；`GET_STATUS` 不重发 `SET_QR` 即为 `last_qr_valid=1` |
-| T-115 | 双槽轮换（连续写入不同内容） | ✅ 第二次写入后复位显示的是**新**内容（版本 3 / 29×29），序号比较正确 |
+| T-115 | 掉电/复位后恢复上一次的二维码 | ✅ 复位后屏幕自动显示同一张码，状态栏 `Restored from flash`；`GET_STATUS` 不重发 `SET_QR` 即为 `last_qr_valid=1` |
+| T-116 | 双槽轮换（连续写入不同内容） | ✅ 第二次写入后复位显示的是**新**内容（版本 3 / 29×29），序号比较正确 |
 
 修复过程中发现并解决的上板缺陷见 [已知限制 3.1](docs/06-known-limitations.md)
 （LVGL I1 位图在 `RGB565_SWAPPED` 目标下渲染为全黑）。
