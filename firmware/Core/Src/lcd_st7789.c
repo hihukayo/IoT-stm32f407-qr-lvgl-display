@@ -62,6 +62,9 @@ static uint16_t s_line[BOARD_LCD_WIDTH];
 /* ======================================================================
  * 底层：CS / DC / SPI
  * ==================================================================== */
+/**
+ * @brief  拉低片选，开始一次 SPI 事务。
+ */
 static inline void lcd_cs_low(void)
 {
     HAL_GPIO_WritePin(BOARD_LCD_CS_PORT, BOARD_LCD_CS_PIN, GPIO_PIN_RESET);
@@ -142,6 +145,11 @@ static void lcd_write_data(const uint8_t *data, uint32_t len, uint32_t tout)
 /* ======================================================================
  * 初始化
  * ==================================================================== */
+/**
+ * @brief  用独立 GPIO 给 ST7789 做硬件复位。
+ * @note   仅在 BOARD_LCD_USE_HW_RESET = 1 时编译进来：RST 拉低 20 ms 再拉高，
+ * 之后等 120 ms 让内部寄存器稳定。本板 J4 无 RST 脚，默认关闭。
+ */
 static void lcd_hw_reset(void)
 {
 #if BOARD_LCD_USE_HW_RESET
@@ -246,7 +254,6 @@ void ST7789_Init(void)
 
 /**
  * @brief  运行时切换屏幕方向并重设坐标映射。
- * @param  rotation 0=竖屏 1=横屏 2=竖屏翻转 3=横屏翻转
  * @note   会重写 MADCTL 并交换逻辑宽高；LVGL 侧分辨率不会自动跟随，
  * 因此固件只在初始化时使用，运行中切换需同时重建 LVGL 显示。
  */
@@ -272,7 +279,6 @@ void ST7789_SetRotation(lcd_rotation_t rotation)
 
 /**
  * @brief  取当前逻辑宽度（像素）。
- * @return 竖屏 240 / 横屏 320
  */
 uint16_t ST7789_GetWidth(void)
 {
@@ -281,7 +287,6 @@ uint16_t ST7789_GetWidth(void)
 
 /**
  * @brief  取当前逻辑高度（像素）。
- * @return 竖屏 320 / 横屏 240
  */
 uint16_t ST7789_GetHeight(void)
 {
@@ -291,6 +296,11 @@ uint16_t ST7789_GetHeight(void)
 /* ======================================================================
  * 窗口与像素写入
  * ==================================================================== */
+/**
+ * @brief  设置 ST7789 的显示窗口（CASET/RASET）。
+ * @note   内部会把 board_config.h 的 X/Y 偏移加进去，并按当前分辨率裁剪；
+ * 随后所有 ST7789_WritePixels() 都写进这个窗口，坐标自动递增。
+ */
 void ST7789_SetWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
 {
     uint8_t caset[4];
@@ -333,8 +343,6 @@ void ST7789_SetWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
 
 /**
  * @brief  向当前窗口连续写入 RGB565 像素。
- * @param  pixels 像素数组（主机字节序 uint16）
- * @param  count  像素个数
  * @note   内部按行缓冲做字节序交换（SPI 需要高字节先发）；调用前必须先
  * ST7789_SetWindow()。单次最多一批 240 像素，避免行缓冲溢出。
  */
@@ -364,12 +372,6 @@ void ST7789_WritePixels(const uint16_t *pixels, uint32_t count)
 
 /**
  * @brief  把主机内存中排列好的 RGB565 位图写入指定矩形区域。
- * @param  x      目标左列
- * @param  y      目标上行
- * @param  w      位图宽度（像素）
- * @param  h      位图高度（像素）
- * @param  stride 行跨度（字节），允许大于 w*2
- * @param  data   位图首地址（字节序已符合 SPI 要求，不再交换）
  * @note   这是 LVGL flush 的落点：stride == w*2 时一次性整块发送，
  * 否则逐行发送，保证任意对齐宽度都正确。
  */
@@ -400,11 +402,6 @@ void ST7789_BlitRGB565(uint16_t x, uint16_t y, uint16_t w, uint16_t h,
 
 /**
  * @brief  用单一颜色填充矩形（自动裁剪到屏幕范围）。
- * @param  x     左列
- * @param  y     上行
- * @param  w     宽度（像素）
- * @param  h     高度（像素）
- * @param  color RGB565 颜色（内部会做字节序交换）
  * @note   用于清屏、标题栏/状态栏底色；越界部分被裁掉，不会写出屏幕。
  */
 void ST7789_FillRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color)
@@ -451,7 +448,6 @@ void ST7789_FillRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t co
 
 /**
  * @brief  整屏填充单色。
- * @param  color RGB565 颜色
  */
 void ST7789_FillScreen(uint16_t color)
 {
@@ -460,9 +456,6 @@ void ST7789_FillScreen(uint16_t color)
 
 /**
  * @brief  画一个像素。
- * @param  x     列坐标
- * @param  y     行坐标
- * @param  color RGB565 颜色
  * @note   越界直接返回；主要用于上板时确认坐标原点与方向（四角打点）。
  */
 void ST7789_DrawPixel(uint16_t x, uint16_t y, uint16_t color)
@@ -477,6 +470,11 @@ void ST7789_DrawPixel(uint16_t x, uint16_t y, uint16_t color)
 /* ======================================================================
  * 背光与状态
  * ==================================================================== */
+/**
+ * @brief  打开或关闭背光。
+ * @note   极性由 BOARD_LCD_BL_ACTIVE_HIGH 决定（本板高电平点亮）；
+ * ST7789_Init() 结束时会调用一次点亮。
+ */
 void ST7789_SetBacklight(bool on)
 {
 #if BOARD_LCD_BL_ACTIVE_HIGH
@@ -489,7 +487,6 @@ void ST7789_SetBacklight(bool on)
 
 /**
  * @brief  查询屏幕是否已完成初始化。
- * @return true = 已初始化
  * @note   只反映软件状态，不做硬件探测（SPI 是只写，读不回来）。
  */
 bool ST7789_IsReady(void)

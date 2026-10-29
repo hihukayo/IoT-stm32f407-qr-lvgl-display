@@ -40,6 +40,11 @@ static void MX_USART1_UART_Init(void);
 /* ======================================================================
  * 入口
  * ==================================================================== */
+/**
+ * @brief  固件入口：初始化时钟/外设/显示/GUI/应用层，然后进入主循环。
+ * @note   主循环只有两件事：APP_Process()（协议、编码、图片流）与
+ * lv_timer_handler()（LVGL 定时器与刷新），全程无阻塞等待。
+ */
 int main(void)
 {
     /* 1. HAL 初始化：SysTick 1 ms、NVIC 优先级分组 4 */
@@ -265,8 +270,6 @@ void Error_Handler(void)
 #ifdef USE_FULL_ASSERT
 /**
  * @brief  HAL 断言失败回调。
- * @param  file 文件名
- * @param  line 行号
  */
 void assert_failed(uint8_t *file, uint32_t line)
 {

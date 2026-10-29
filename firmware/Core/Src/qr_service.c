@@ -86,6 +86,11 @@ static void compute_geometry(uint8_t modules, qr_meta_t *meta)
 /* ======================================================================
  * 对外接口
  * ==================================================================== */
+/**
+ * @brief  复位编码服务状态（清空元数据、标记"无有效二维码"）。
+ * @note   只清软件状态，不动 g_qr_bitmap；上电流程里由 APP_Init() 调用，
+ * 随后可能被 STORAGE 恢复的二维码覆盖。
+ */
 void QR_ServiceInit(void)
 {
     (void)memset(&s_meta, 0, sizeof(s_meta));
@@ -95,12 +100,6 @@ void QR_ServiceInit(void)
 
 /**
  * @brief  把文本编码成 QR 模块矩阵并填元数据。
- * @param  text      文本字节（UTF-8），1..256 字节
- * @param  len       字节数
- * @param  symbology 码制，仅 QR_SYM_QRCODE 受支持
- * @param  ecc       纠错等级 L/M/Q/H
- * @param  out_meta  成功时写入；**失败时不修改**（保留上一张有效二维码）
- * @return QR_OK 或具体错误码
  * @note   接口契约见 qr_service.h。内部使用 qrcodegen 的 byte 模式，不写 ECI(UTF-8)。
  */
 qr_result_t QR_ServiceEncode(const uint8_t *text, uint16_t len,
@@ -171,7 +170,6 @@ qr_result_t QR_ServiceEncode(const uint8_t *text, uint16_t len,
 
 /**
  * @brief  取当前有效二维码的元数据副本。
- * @param  out 输出结构，不可为 NULL；无有效二维码时 valid 置 false
  */
 void QR_ServiceGetMeta(qr_meta_t *out)
 {
@@ -182,9 +180,6 @@ void QR_ServiceGetMeta(qr_meta_t *out)
 
 /**
  * @brief  查询模块矩阵中某个模块是否为深色。
- * @param  x 列索引 0..modules-1
- * @param  y 行索引 0..modules-1
- * @return true = 深色（应画黑）；越界返回 false
  */
 bool QR_ServiceGetModule(uint8_t x, uint8_t y)
 {
@@ -199,7 +194,6 @@ bool QR_ServiceGetModule(uint8_t x, uint8_t y)
 
 /**
  * @brief  取模块矩阵每边的模块数。
- * @return 17 + 4*version；无有效二维码时返回 0
  */
 uint8_t QR_ServiceGetModuleCount(void)
 {
@@ -208,7 +202,6 @@ uint8_t QR_ServiceGetModuleCount(void)
 
 /**
  * @brief  取当前二维码版本号。
- * @return 1..20；无有效二维码时返回 0
  */
 uint8_t QR_ServiceGetVersion(void)
 {
@@ -217,7 +210,6 @@ uint8_t QR_ServiceGetVersion(void)
 
 /**
  * @brief  是否已有一张成功生成的二维码。
- * @return true = 可以导出/复用
  * @note   编码失败不会把它置回 false，这是"失败保留上一张"的实现基础。
  */
 bool QR_ServiceIsValid(void)
@@ -227,8 +219,6 @@ bool QR_ServiceIsValid(void)
 
 /**
  * @brief  把 ECC 枚举转成单字符名字。
- * @param  ecc qr_ecc_t
- * @return 静态字符串 "L"/"M"/"Q"/"H"；越界时返回问号。
  */
 const char *QR_ServiceEccName(uint8_t ecc)
 {

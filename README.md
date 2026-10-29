@@ -137,7 +137,8 @@ IoT-stm32f407-qr-lvgl-display/
 │       ├── run_tests.ps1              一键编译并运行
 │       └── out/                       导出样例 BMP
 └── tools/
-    └── gen_keil_project.py            扫描源码树重新生成 .uvprojx
+    ├── gen_keil_project.py            扫描源码树重新生成 .uvprojx
+    └── check_doxygen.py               检查固件函数的 Doxygen 注释覆盖率
 ```
 
 ---
@@ -253,6 +254,21 @@ powershell -ExecutionPolicy Bypass -File tests\firmware\run_tests.ps1
 
 需要 `gcc`（如 MinGW-w64）。该脚本会用 gcc 编译 `uart_protocol.c` / `qr_service.c` /
 `qr_bitmap.c` / `bmp_stream.c`（原样编译），跑 104 项断言，再用 Pillow/OpenCV 校验导出的 BMP。
+
+### 4.5 检查注释覆盖 / 生成 API 文档
+
+```bat
+:: 1) 函数注释覆盖率（0 缺口时退出码 0，可直接接 CI）
+python tools\check_doxygen.py
+python tools\check_doxygen.py --list      :: 逐条列出缺口
+
+:: 2) 生成 HTML 文档（需要先安装 doxygen）
+doxygen docs\Doxyfile
+:: 输出在 docs/doxygen/html/index.html（已 gitignore）
+```
+
+`check_doxygen.py` 统计两类：`Src/*.c` 的函数定义、`Inc/*.h` 的原型声明。
+当前基线：**函数 121/121、原型 55/55 全部有注释**。
 
 ---
 

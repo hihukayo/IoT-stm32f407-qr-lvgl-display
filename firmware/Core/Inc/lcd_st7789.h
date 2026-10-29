@@ -6,7 +6,7 @@
  *          ST7789 自带 GRAM，因此**不需要也不允许**分配 240x320x2 = 150 KiB 的全屏缓冲；
  *          本驱动所有接口都是"设定窗口 + 流式写入像素"。
  *
- *          引脚与 SPI 实例全部来自 @ref board_config.h。
+ *          引脚与 SPI 实例全部来自 @ref board_config.h 中的宏。
  */
 
 #ifndef LCD_ST7789_H

@@ -75,6 +75,10 @@ static uint8_t  s_verify[REC_SIZE]; /**< 回读校验缓冲 */
 /* ======================================================================
  * 底层 SPI 辅助
  * ==================================================================== */
+/**
+ * @brief  控制 W25Q16 的片选。
+ * @param  level true = 拉高（不选中），false = 拉低（选中）
+ */
 static void flash_cs(bool level)
 {
     HAL_GPIO_WritePin(BOARD_FLASH_CS_PORT, BOARD_FLASH_CS_PIN,
@@ -401,6 +405,11 @@ static bool scan_latest(storage_saved_t *out)
 /* ======================================================================
  * 对外接口
  * ==================================================================== */
+/**
+ * @brief  初始化 SPI1 片选并探测 W25Q16，同时预扫描两个槽。
+ * @note   探测失败不会报错，只让本模块整体退化为"无持久化"——二维码生成与
+ * BMP 导出仍然可用。预扫描的结果用于决定下一次 Save 写哪个槽。
+ */
 bool STORAGE_Init(void)
 {
     uint32_t id = 0U;
@@ -431,7 +440,6 @@ bool STORAGE_Init(void)
 
 /**
  * @brief  查询 W25Q16 是否可用。
- * @return true = 初始化时 JEDEC ID 匹配成功
  */
 bool STORAGE_IsReady(void)
 {
@@ -440,8 +448,6 @@ bool STORAGE_IsReady(void)
 
 /**
  * @brief  读取最近一条有效记录。
- * @param  out 输出结构，不可为 NULL
- * @return true = 存在有效记录（CRC 正确且序号最大）
  * @note   会顺便刷新内部缓存，供 STORAGE_Save 去重与选择下一个槽。
  */
 bool STORAGE_Load(storage_saved_t *out)
@@ -465,11 +471,6 @@ bool STORAGE_Load(storage_saved_t *out)
 
 /**
  * @brief  保存文本记录（内容未变则直接返回，不擦写）。
- * @param  text      文本字节，1..256
- * @param  len       字节数
- * @param  symbology qr_symbology_t
- * @param  ecc       qr_ecc_t
- * @return true = 已写入并回读校验通过
  * @note   写入走"另一个槽"：先擦 4 KiB 扇区，再分两页编程（256 + 14 字节），
  * 最后回读比对。擦除期间阻塞约 40~60 ms，故调用方应放在 ACK 之后。
  */
@@ -551,7 +552,6 @@ bool STORAGE_Save(const uint8_t *text, uint16_t len, uint8_t symbology, uint8_t 
 
 /**
  * @brief  擦除两个槽，清空持久化内容。
- * @return true = 两个扇区都擦除成功
  * @note   仅供维护/测试使用；正常运行不需要调用（清空后可重新开始记录）。
  */
 bool STORAGE_EraseAll(void)

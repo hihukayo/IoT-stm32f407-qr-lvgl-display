@@ -87,6 +87,12 @@ static void disp_flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t *px
 /* ======================================================================
  * 初始化
  * ==================================================================== */
+/**
+ * @brief  初始化 LVGL 内核并注册 ST7789 显示设备。
+ * @note   顺序固定：lv_init -> 绑定时基 -> 创建 display -> 设颜色格式
+ * （RGB565_SWAPPED）-> 注册 flush 回调 -> 绑定 240x20 局部缓冲。
+ * 必须在 ST7789_Init() 之后、UI_Init() 之前调用。
+ */
 void LV_Port_Init(void)
 {
     /* 1. LVGL 内核 */
@@ -115,7 +121,6 @@ void LV_Port_Init(void)
 
 /**
  * @brief  取 LVGL 局部绘图缓冲的字节数。
- * @return 9600（240x20 RGB565）
  * @note   用于内存预算核对与测试断言，运行时不参与刷新流程。
  */
 uint32_t LV_Port_GetBufferBytes(void)

@@ -66,7 +66,6 @@ static void put_u32(uint8_t *p, uint32_t v)
 
 /**
  * @brief  构造 62 字节 BMP 文件头并绑定像素数据源。
- * @param  pixel_data 240x240 1bpp 像素区首地址（通常是 g_qr_bitmap）
  * @note   像素区不复制、不申请内存，只保存指针；因此 `pixel_data` 必须比本模块
  * 活得更久（见 qr_bitmap.c 的静态数组）。
  * @note   固定输出 240x240、1bpp、无压缩、top-down、调色板 0=黑 1=白、总长 7742 字节。
@@ -112,10 +111,6 @@ void BMP_Init(const uint8_t *pixel_data)
 
 /**
  * @brief  按"文件绝对偏移"流式读取 BMP 数据。
- * @param  offset 文件内偏移（0..7741）
- * @param  dst    输出缓冲
- * @param  len    期望读取的字节数
- * @return 实际写入 dst 的字节数；越界或参数非法时返回 0
  * @note   内部把偏移拆成"文件头段"与"像素段"两次拷贝，因此调用方可以按任意块
  * 大小拉取（上位机每块 448 字节），不需要整张图缓冲。
  */
@@ -157,7 +152,6 @@ uint32_t BMP_Read(uint32_t offset, uint8_t *dst, uint32_t len)
 
 /**
  * @brief  计算整份 BMP（文件头 + 像素区）的 CRC-32/ISO-HDLC。
- * @return 32 位 CRC；像素源未绑定时返回 0
  * @note   用于 EVT_IMAGE_END 的整文件校验，上位机据此判断传输是否完整。
  */
 uint32_t BMP_ComputeCrc32(void)
@@ -177,7 +171,6 @@ uint32_t BMP_ComputeCrc32(void)
 
 /**
  * @brief  取当前绑定的像素区指针。
- * @return 像素区首地址；未初始化时返回 NULL
  */
 const uint8_t *BMP_GetPixelData(void)
 {

@@ -45,7 +45,7 @@ extern "C" {
 /**
  * @brief 初始化 BMP 流：构造 62 字节文件头并绑定像素数据。
  * @param pixel_data 1bpp 像素数据（240 行 x 32 字节），生命周期必须覆盖整个导出过程
- * @note  传入的通常是 @ref g_qr_bitmap。
+ * @note  传入的通常是 @ref g_qr_bitmap 这个静态数组。
  */
 void BMP_Init(const uint8_t *pixel_data);
 

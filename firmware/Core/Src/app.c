@@ -505,7 +505,6 @@ void APP_Process(void)
 
 /**
  * @brief  查询是否正在发送 BMP 图片流。
- * @return true = 忙（此时 SET_QR 会返回 BUSY）
  */
 bool APP_IsStreaming(void)
 {
@@ -514,7 +513,6 @@ bool APP_IsStreaming(void)
 
 /**
  * @brief  取当前应用状态。
- * @return APP_STATE_IDLE 或 APP_STATE_STREAMING
  */
 app_state_t APP_GetState(void)
 {

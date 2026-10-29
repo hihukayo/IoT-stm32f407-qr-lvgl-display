@@ -48,6 +48,11 @@ static bool     s_tx_busy;                      /**< 发送互斥标志         
 /* ======================================================================
  * CRC 实现
  * ==================================================================== */
+/**
+ * @brief  计算 CRC-16/MODBUS（初值 0xFFFF，反射多项式 0xA001）。
+ * @note   覆盖范围是帧的 VER..PAYLOAD（不含两个 SOF，也不含 CRC 自身）；
+ * 线上按低字节先发。测试向量："123456789" -> 0x4B37。
+ */
 uint16_t proto_crc16(const uint8_t *data, uint32_t len)
 {
     uint16_t crc = 0xFFFFU;
@@ -71,7 +76,6 @@ uint16_t proto_crc16(const uint8_t *data, uint32_t len)
 
 /**
  * @brief  取 CRC-32/ISO-HDLC 的初值。
- * @return 0xFFFFFFFF
  */
 uint32_t proto_crc32_start(void)
 {
@@ -80,10 +84,6 @@ uint32_t proto_crc32_start(void)
 
 /**
  * @brief  增量更新 CRC-32/ISO-HDLC。
- * @param  crc  上一轮的中间值（首次传 proto_crc32_start() 的返回值）
- * @param  data 数据指针，NULL 时原样返回 crc
- * @param  len  字节数
- * @return 新的中间值
  */
 uint32_t proto_crc32_update(uint32_t crc, const uint8_t *data, uint32_t len)
 {
@@ -110,8 +110,6 @@ uint32_t proto_crc32_update(uint32_t crc, const uint8_t *data, uint32_t len)
 
 /**
  * @brief  收尾：对中间值取反。
- * @param  crc 中间值
- * @return 最终 CRC-32
  */
 uint32_t proto_crc32_finish(uint32_t crc)
 {
@@ -120,9 +118,6 @@ uint32_t proto_crc32_finish(uint32_t crc)
 
 /**
  * @brief  一次性计算 CRC-32/ISO-HDLC。
- * @param  data 数据指针
- * @param  len  字节数
- * @return 32 位 CRC
  * @note   等价于 start -> update -> finish；"123456789" 的结果应为 0xCBF43926。
  */
 uint32_t proto_crc32(const uint8_t *data, uint32_t len)
@@ -133,6 +128,10 @@ uint32_t proto_crc32(const uint8_t *data, uint32_t len)
 /* ======================================================================
  * 解析器
  * ==================================================================== */
+/**
+ * @brief  把解析器复位到"等待帧头 0xA5"的初始状态。
+ * @note   坏帧、超时、显式复位都会走到这里；统计计数器不受影响。
+ */
 void proto_parser_reset(void)
 {
     s_state   = PARSER_SOF0;
@@ -143,9 +142,6 @@ void proto_parser_reset(void)
 
 /**
  * @brief  向流式解析器喂一个字节。
- * @param  byte 收到的字节
- * @param  out  解析出完整帧时写入该结构
- * @return true = 本次调用凑齐了一个通过 CRC 校验的完整帧
  * @note   状态机逐字节推进，因此不需要"一次收完整帧"；坏 VER、LEN 超限、CRC 错
  * 都会丢弃候选帧头并从下一个 0xA5 重新同步。
  */
@@ -237,7 +233,6 @@ bool proto_parser_feed(uint8_t byte, proto_frame_t *out)
 
 /**
  * @brief  半帧超时检测：超过 1 秒没有新字节就丢弃残帧。
- * @param  now_ms 当前毫秒时基（HAL_GetTick()）
  * @note   需在主循环里周期性调用；防止上位机半途断开后解析器一直卡在收帧状态。
  */
 void proto_parser_poll(uint32_t now_ms)
@@ -250,9 +245,6 @@ void proto_parser_poll(uint32_t now_ms)
 
 /**
  * @brief  读取解析统计（用于调试与测试记录）。
- * @param  frames_ok   输出：成功解析的帧数
- * @param  crc_errors  输出：CRC 错误次数
- * @param  bad_frames  输出：VER/LEN 非法被丢弃的次数
  * @note   任一输出指针可为 NULL，表示不需要该统计。
  */
 void proto_parser_stats(uint32_t *frames_ok, uint32_t *crc_errors, uint32_t *bad_frames)
@@ -271,6 +263,10 @@ void proto_parser_stats(uint32_t *frames_ok, uint32_t *crc_errors, uint32_t *bad
 /* ======================================================================
  * 发送
  * ==================================================================== */
+/**
+ * @brief  按协议封装并发送一帧（阻塞发送）。
+ * @note   CRC 覆盖 VER..PAYLOAD；LEN 为 payload 长度（不含 9 字节帧头与 CRC）。
+ */
 bool proto_send_frame(uint8_t cmd, uint8_t seq, const uint8_t *payload, uint16_t len)
 {
     uint16_t crc;
@@ -314,13 +310,6 @@ bool proto_send_frame(uint8_t cmd, uint8_t seq, const uint8_t *payload, uint16_t
 
 /**
  * @brief  发送 4 字节标准 ACK。
- * @param  req_cmd    请求命令字（自动 |0x80 作为应答命令）
- * @param  seq        请求序号，原样回填
- * @param  status     状态码（0=OK）
- * @param  error_code 错误码（0=NONE）
- * @param  qr_version QR 版本（成功时有效，否则 0）
- * @param  module_count 模块数（成功时有效，否则 0）
- * @return true = 发送成功
  * @note   ACK payload 固定为 [status][error_code][qr_version][module_count]。
  */
 bool proto_send_ack(uint8_t req_cmd, uint8_t seq, uint8_t status, uint8_t error_code,
