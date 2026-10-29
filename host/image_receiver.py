@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import struct
 import tempfile
 import uuid
@@ -257,14 +258,29 @@ class ImageReceiver:
 
         参数:
             final_path: 成功后的正式 BMP 路径；省略时在临时目录自动命名。
-            temp_dir: ``.part`` 所在目录；省略时自动创建 ``qr_bmp_*`` 临时目录。
+            temp_dir: ``.part`` 所在目录；省略时**优先放在 final_path 同目录**，
+                没有 final_path 才退化为系统临时目录。
+
+        说明:
+            ``.part`` 必须与最终文件位于同一卷，否则成功时的 ``os.replace()``
+            在 Windows 上会报 ``WinError 17``（系统无法把文件移到不同的磁盘驱动器）。
+            因此这里默认把临时文件建在目标文件旁边；只有调用方显式指定
+            ``temp_dir`` 时才会覆盖该策略（此时 ``end()`` 会在跨卷时退化为复制+删除）。
         """
-        self._owns_temp_dir = temp_dir is None
-        base = (
-            Path(tempfile.mkdtemp(prefix="qr_bmp_"))
-            if temp_dir is None
-            else Path(temp_dir)
-        )
+        explicit_temp = temp_dir is not None
+        target = None if final_path is None else Path(final_path)
+
+        if explicit_temp:
+            base = Path(temp_dir)          # 调用方指定，尊重其选择
+            self._owns_temp_dir = False
+        elif target is not None:
+            # 关键：与目标同目录，保证 os.replace 是同卷重命名
+            base = target.parent if str(target.parent) else Path(".")
+            self._owns_temp_dir = False
+        else:
+            base = Path(tempfile.mkdtemp(prefix="qr_bmp_"))
+            self._owns_temp_dir = True
+
         base.mkdir(parents=True, exist_ok=True)
         self.temp_dir = base
 
@@ -273,9 +289,7 @@ class ImageReceiver:
         stem = f"qr_{stamp}_{unique}"
         self.part_path = base / f"{stem}.part"
         self._final_is_temporary = final_path is None
-        self.final_path = (
-            base / f"{stem}.bmp" if final_path is None else Path(final_path)
-        )
+        self.final_path = base / f"{stem}.bmp" if target is None else target
 
         self._state = ImageState.IDLE
         self._file: BinaryIO | None = None
@@ -502,9 +516,14 @@ class ImageReceiver:
             self.final_path.parent.mkdir(parents=True, exist_ok=True)
             os.replace(self.part_path, self.final_path)
         except OSError as exc:
-            message = f"无法把临时文件重命名为 {self.final_path}：{exc}"
-            self._fail(message)
-            raise ImageReceiveError(message) from exc
+            # 跨卷（例如显式指定了 temp_dir 而目标在另一个盘）时 os.replace 会失败
+            # （Windows: WinError 17），退化为"复制 + 删除"，功能等价但非原子。
+            try:
+                shutil.move(str(self.part_path), str(self.final_path))
+            except OSError:
+                message = f"无法把临时文件重命名为 {self.final_path}：{exc}"
+                self._fail(message)
+                raise ImageReceiveError(message) from exc
 
         self._end_crc = event.crc32
         self._state = ImageState.DONE

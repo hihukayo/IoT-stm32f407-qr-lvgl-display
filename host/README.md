@@ -130,7 +130,9 @@ py -3 main.py
 1. 生成成功，或设备状态显示已有有效二维码后，“导出 BMP”按钮可用。
 2. 点击后发送 `CMD_GET_IMAGE`。设备先回 ACK，再发送
    `EVT_IMAGE_BEGIN/DATA/END`。
-3. 上位机把数据写入系统临时目录中的 `.part` 文件，实时显示进度。
+3. 上位机把数据写入**与目标文件同目录**的 `.part` 文件（同卷，保证成功时的一次性
+   重命名可用；旧版本写在系统临时目录，保存到另一个盘会报 `WinError 17`），
+   实时显示进度。
 4. 只有同时满足以下条件才会把 `.part` 重命名为正式 `.bmp`：
    - offset 从 0 开始、连续、无重复、无缺口、无越界；
    - 累计长度与 BEGIN/END 声明一致（固定 7742 字节）；
@@ -234,7 +236,7 @@ py -3 -m unittest discover -s tests -v
 python -m unittest discover -s tests -v
 ```
 
-当前软件测试共 **62 项**，全部通过。除「导入图片」那 10 项（需要 Pillow +
+当前软件测试共 **64 项**，全部通过。除「导入图片」那 10 项（需要 Pillow +
 zxing-cpp，缺失时自动跳过）外，其余测试仅使用 Python 标准库，不需要
 pyserial、串口或 STM32 硬件。覆盖内容：
 

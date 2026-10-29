@@ -166,6 +166,26 @@ class TestImageReceiverSuccess(unittest.TestCase):
             self.assertEqual(final.read_bytes(), bmp)
             validate_bmp_file(final)
 
+    def test_part_file_sits_next_to_final_path(self) -> None:
+        """指定正式路径且不指定 temp_dir 时，.part 必须建在目标同目录（同卷）。
+
+        这是跨盘 bug 的回归测试：.part 在系统临时目录（C 盘）而目标在 D 盘时，
+        os.replace 会报 WinError 17，导致导出失败。
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            final = Path(tmp) / "sub" / "qr.bmp"
+            receiver = ImageReceiver(final_path=final)
+            self.assertEqual(receiver.part_path.parent, final.parent)
+            self.assertEqual(receiver.temp_dir, final.parent)
+            self.assertFalse(receiver._owns_temp_dir)  # 不得删用户目录
+
+    def test_explicit_temp_dir_is_honored(self) -> None:
+        """显式给 temp_dir 时仍按调用方指定，不被 final_path 覆盖。"""
+        with tempfile.TemporaryDirectory() as tmp_a, tempfile.TemporaryDirectory() as tmp_b:
+            receiver = ImageReceiver(final_path=Path(tmp_b) / "x.bmp", temp_dir=Path(tmp_a))
+            self.assertEqual(receiver.part_path.parent, Path(tmp_a))
+            self.assertEqual(receiver.final_path, Path(tmp_b) / "x.bmp")
+
     def test_default_final_path_is_in_temp_dir_and_cleanup(self) -> None:
         """不指定正式路径时自动生成临时 BMP，清理时一并删除。"""
         bmp = build_synthetic_bmp()
