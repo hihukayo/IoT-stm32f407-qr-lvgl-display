@@ -33,7 +33,7 @@
 **上板实拍**（STM32F407VET6 核心板 + 2.4" 240×320 ST7789，串口发送 `Hello 123`，
 ECC=M，固件回 `V1 M 21x21`，状态栏 `QR code generated`）：
 
-![上板实拍](docs/images/screenshot.png)
+<img src="docs/images/screenshot.png" width="360" alt="上板实拍：核心板与 ST7789 屏幕显示二维码">
 
 ---
 
