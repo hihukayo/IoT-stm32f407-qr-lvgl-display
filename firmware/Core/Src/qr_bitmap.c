@@ -32,11 +32,21 @@ static inline void bitmap_set_black(uint16_t x, uint16_t y)
     g_qr_bitmap[idx] &= (uint8_t)(~mask);
 }
 
+/**
+ * @brief  把整张位图清为纯白（0xFF）。
+ * @note   I1 语义为"位=1 白、位=0 黑"，因此 0xFF 即全白。
+ */
 void QR_BitmapClear(void)
 {
     (void)memset(g_qr_bitmap, 0xFF, sizeof(g_qr_bitmap));
 }
 
+/**
+ * @brief  按元数据把 QR 模块矩阵渲染成 240x240 1bpp 位图。
+ * @param  meta 当前有效二维码的元数据（QR_ServiceEncode 填充）
+ * @note   内部先清屏再画：整数倍缩放（最多 6 像素/模块）、居中、四周保留 4 模块静区；
+ * **同一份位图同时供 LCD 显示与 BMP 导出**，保证"屏幕所见 = 导出所得"。
+ */
 void QR_BitmapRender(const qr_meta_t *meta)
 {
     uint8_t  modules;
@@ -84,6 +94,13 @@ void QR_BitmapRender(const qr_meta_t *meta)
     }
 }
 
+/**
+ * @brief  读取位图中某像素的位值（1=白，0=黑）。
+ * @param  x 列坐标 0..239
+ * @param  y 行坐标 0..239
+ * @return 1 或 0；越界返回 0
+ * @note   仅供测试与自检使用，绘制路径不经过它（避免逐像素函数调用开销）。
+ */
 uint8_t QR_BitmapGetPixel(uint16_t x, uint16_t y)
 {
     uint32_t idx;

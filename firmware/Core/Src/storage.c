@@ -81,11 +81,24 @@ static void flash_cs(bool level)
                       level ? GPIO_PIN_SET : GPIO_PIN_RESET);
 }
 
+/**
+ * @brief  只发不收地写一段数据到 W25Q16。
+ * @param  data 数据指针
+ * @param  len  字节数
+ * @return true = HAL 报告发送完成
+ * @note   片选由调用方负责拉低/拉高，本函数不碰 CS。
+ */
 static bool flash_tx(const uint8_t *data, uint16_t len)
 {
     return HAL_SPI_Transmit(BOARD_FLASH_SPI_HANDLE, (uint8_t *)data, len, 100U) == HAL_OK;
 }
 
+/**
+ * @brief  从 W25Q16 读回一段数据（时钟由 HAL 产生）。
+ * @param  data 输出缓冲
+ * @param  len  字节数
+ * @return true = 读取成功
+ */
 static bool flash_rx(uint8_t *data, uint16_t len)
 {
     return HAL_SPI_Receive(BOARD_FLASH_SPI_HANDLE, data, len, 100U) == HAL_OK;
@@ -115,6 +128,11 @@ static bool flash_wait_ready(uint32_t timeout_ms)
     }
 }
 
+/**
+ * @brief  发送 Write Enable（0x06），擦写前必须先发。
+ * @return true = 命令已发出
+ * @note   命令发出后芯片内部 WEL 位置 1，擦除/编程完成后自动清零。
+ */
 static bool flash_write_enable(void)
 {
     uint8_t cmd = W25Q_CMD_WRITE_ENABLE;
@@ -143,6 +161,13 @@ static bool flash_read_jedec(uint32_t *out_id)
     return true;
 }
 
+/**
+ * @brief  从指定地址读任意长度数据（0x03 Read Data）。
+ * @param  addr 24 位字节地址
+ * @param  buf  输出缓冲
+ * @param  len  字节数
+ * @return true = 读取成功
+ */
 static bool flash_read(uint32_t addr, uint8_t *buf, uint16_t len)
 {
     uint8_t cmd[4];
@@ -159,6 +184,14 @@ static bool flash_read(uint32_t addr, uint8_t *buf, uint16_t len)
     return ok;
 }
 
+/**
+ * @brief  页编程（0x02），一次最多 256 字节且不得跨页。
+ * @param  addr 页内目标地址
+ * @param  data 数据指针
+ * @param  len  字节数（1..256）
+ * @return true = 编程完成且芯片已退出 BUSY
+ * @note   内部先发 Write Enable；调用方需保证 len 不超过页边界剩余空间。
+ */
 static bool flash_page_program(uint32_t addr, const uint8_t *data, uint16_t len)
 {
     uint8_t cmd[4];
@@ -183,6 +216,13 @@ static bool flash_page_program(uint32_t addr, const uint8_t *data, uint16_t len)
     return ok && flash_wait_ready(50U);
 }
 
+/**
+ * @brief  擦除 4 KiB 扇区（0x20），整扇区变 0xFF。
+ * @param  addr 扇区内任意地址
+ * @return true = 擦除完成（超时 1000 ms）
+ * @note   这是唯一的擦除粒度：擦除期间 CPU 阻塞约 40~60 ms，因此只在
+ * 文本变化时调用。
+ */
 static bool flash_sector_erase(uint32_t addr)
 {
     uint8_t cmd[4];
@@ -227,17 +267,32 @@ static uint16_t crc16_modbus(const uint8_t *data, uint16_t len)
     return crc;
 }
 
+/**
+ * @brief  以小端格式写入 16 位整数。
+ * @param  p 目标地址
+ * @param  v 数值
+ */
 static void put_u16(uint8_t *p, uint16_t v)
 {
     p[0] = (uint8_t)(v & 0xFFU);
     p[1] = (uint8_t)((v >> 8) & 0xFFU);
 }
 
+/**
+ * @brief  以小端格式读取 16 位整数。
+ * @param  p 源地址
+ * @return 读到的值
+ */
 static uint16_t get_u16(const uint8_t *p)
 {
     return (uint16_t)((uint16_t)p[0] | ((uint16_t)p[1] << 8));
 }
 
+/**
+ * @brief  以小端格式写入 32 位整数。
+ * @param  p 目标地址
+ * @param  v 数值
+ */
 static void put_u32(uint8_t *p, uint32_t v)
 {
     p[0] = (uint8_t)(v & 0xFFU);
@@ -246,6 +301,11 @@ static void put_u32(uint8_t *p, uint32_t v)
     p[3] = (uint8_t)((v >> 24) & 0xFFU);
 }
 
+/**
+ * @brief  以小端格式读取 32 位整数。
+ * @param  p 源地址
+ * @return 读到的值
+ */
 static uint32_t get_u32(const uint8_t *p)
 {
     return (uint32_t)p[0] | ((uint32_t)p[1] << 8) |
@@ -369,11 +429,21 @@ bool STORAGE_Init(void)
     return true;
 }
 
+/**
+ * @brief  查询 W25Q16 是否可用。
+ * @return true = 初始化时 JEDEC ID 匹配成功
+ */
 bool STORAGE_IsReady(void)
 {
     return s_ready;
 }
 
+/**
+ * @brief  读取最近一条有效记录。
+ * @param  out 输出结构，不可为 NULL
+ * @return true = 存在有效记录（CRC 正确且序号最大）
+ * @note   会顺便刷新内部缓存，供 STORAGE_Save 去重与选择下一个槽。
+ */
 bool STORAGE_Load(storage_saved_t *out)
 {
     storage_saved_t tmp;
@@ -393,6 +463,16 @@ bool STORAGE_Load(storage_saved_t *out)
     return true;
 }
 
+/**
+ * @brief  保存文本记录（内容未变则直接返回，不擦写）。
+ * @param  text      文本字节，1..256
+ * @param  len       字节数
+ * @param  symbology qr_symbology_t
+ * @param  ecc       qr_ecc_t
+ * @return true = 已写入并回读校验通过
+ * @note   写入走"另一个槽"：先擦 4 KiB 扇区，再分两页编程（256 + 14 字节），
+ * 最后回读比对。擦除期间阻塞约 40~60 ms，故调用方应放在 ACK 之后。
+ */
 bool STORAGE_Save(const uint8_t *text, uint16_t len, uint8_t symbology, uint8_t ecc)
 {
     uint32_t base;
@@ -469,6 +549,11 @@ bool STORAGE_Save(const uint8_t *text, uint16_t len, uint8_t symbology, uint8_t 
     return true;
 }
 
+/**
+ * @brief  擦除两个槽，清空持久化内容。
+ * @return true = 两个扇区都擦除成功
+ * @note   仅供维护/测试使用；正常运行不需要调用（清空后可重新开始记录）。
+ */
 bool STORAGE_EraseAll(void)
 {
     if (!s_ready) {

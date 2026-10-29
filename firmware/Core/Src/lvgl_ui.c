@@ -132,6 +132,11 @@ void UI_SetStatus(const char *text)
     }
 }
 
+/**
+ * @brief  以红色显示一条错误状态（不改变布局）。
+ * @param  text ASCII 文本；NULL 时忽略
+ * @note   与 UI_SetStatus 的区别：错误文本不去重，每次都重绘并切到红色。
+ */
 void UI_SetError(const char *text)
 {
     if ((s_status == NULL) || (text == NULL)) {
@@ -141,6 +146,11 @@ void UI_SetError(const char *text)
     lv_obj_set_style_text_color(s_status, lv_color_hex(UI_COLOR_ERROR), LV_PART_MAIN);
 }
 
+/**
+ * @brief  设置右上角信息文本（如 "V1 M 21x21"）。
+ * @param  text ASCII 文本；NULL 时忽略
+ * @note   内容未变化时不重绘，减少无谓刷屏。
+ */
 void UI_SetInfo(const char *text)
 {
     if ((s_info == NULL) || (text == NULL)) {
@@ -169,6 +179,11 @@ void UI_ShowQr(const qr_meta_t *meta)
     lv_obj_invalidate(s_qr);
 }
 
+/**
+ * @brief  隐藏二维码图像控件（画布区域保持纯白）。
+ * @note   同时把内部"应显示"标志置 false，flush 覆盖层也会随之跳过——
+ * 两者必须同步，否则屏幕会残留上一张码。
+ */
 void UI_HideQr(void)
 {
     if (s_qr == NULL) {
@@ -179,6 +194,10 @@ void UI_HideQr(void)
     lv_obj_invalidate(s_qr);
 }
 
+/**
+ * @brief  强制重绘二维码（g_qr_bitmap 被原地修改后调用）。
+ * @note   重新 set_src 以刷新 LVGL 的缓存状态，再 invalidate 触发重绘。
+ */
 void UI_RefreshQr(void)
 {
     if (s_qr == NULL) {

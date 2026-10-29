@@ -473,6 +473,11 @@ void APP_Init(void)
     (void)HAL_UART_Receive_IT(BOARD_UART_HANDLE, &s_rx_byte, 1U);
 }
 
+/**
+ * @brief  应用主循环任务：超时检测 -> 排空环形缓冲 -> 分派命令 -> 推进图片流。
+ * @note   单次调用有工作量上限（每次最多排空 256 字节），保证主循环能及时返回
+ * 去跑 lv_timer_handler()，界面上不会"假死"。
+ */
 void APP_Process(void)
 {
     uint32_t i;
@@ -498,11 +503,19 @@ void APP_Process(void)
     led_poll();
 }
 
+/**
+ * @brief  查询是否正在发送 BMP 图片流。
+ * @return true = 忙（此时 SET_QR 会返回 BUSY）
+ */
 bool APP_IsStreaming(void)
 {
     return (s_state == APP_STATE_STREAMING);
 }
 
+/**
+ * @brief  取当前应用状态。
+ * @return APP_STATE_IDLE 或 APP_STATE_STREAMING
+ */
 app_state_t APP_GetState(void)
 {
     return s_state;

@@ -113,6 +113,11 @@ void LV_Port_Init(void)
                            LV_DISPLAY_RENDER_MODE_PARTIAL);
 }
 
+/**
+ * @brief  取 LVGL 局部绘图缓冲的字节数。
+ * @return 9600（240x20 RGB565）
+ * @note   用于内存预算核对与测试断言，运行时不参与刷新流程。
+ */
 uint32_t LV_Port_GetBufferBytes(void)
 {
     return (uint32_t)sizeof(s_draw_buf);
