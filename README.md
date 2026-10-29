@@ -25,7 +25,9 @@
 固件生成的 240×240 二维码（`Hello 123`，QR 版本 3，29×29 模块，每模块 6 像素，
 四周 33 像素留白 + 4 模块静区），由 `tests/firmware/out/qr_hello123.bmp` 放大 2 倍：
 
-![示例二维码](docs/images/qr-example-hello123.png)
+<p align="center">
+  <img src="docs/images/qr-example-hello123.png" alt="示例二维码：Hello 123">
+</p>
 
 该 BMP 文件大小为 **7 742 字节**、1bpp、无压缩，已用 OpenCV `QRCodeDetector`
 真实解码为 `Hello 123`。
