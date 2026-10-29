@@ -23,6 +23,7 @@ from tkinter import filedialog, messagebox, ttk
 from typing import Any
 
 import protocol
+import qr_decode
 import serial_worker
 from image_receiver import ImageReceiveResult, ImageReceiver
 
@@ -242,6 +243,14 @@ class HostApp(tk.Tk):
             command=self._on_export_bmp,
         )
         self._export_btn.grid(row=0, column=1)
+
+        self._import_btn = ttk.Button(
+            action_row,
+            text="导入图片",
+            width=12,
+            command=self._on_import_image,
+        )
+        self._import_btn.grid(row=0, column=2, padx=(6, 0))
 
         self._qr_info_var = tk.StringVar(value="尚未生成二维码")
         ttk.Label(
@@ -661,6 +670,77 @@ class HostApp(tk.Tk):
                 "Data Matrix 编码尚未实现，本版本只能生成 QR Code。",
                 parent=self,
             )
+
+    def _on_import_image(self) -> None:
+        """从图片中解出二维码文本，并在已连接时直接发送给设备重新生成。
+
+        固件不支持接收图片，所以这里做的是"图片 → 文本 → SET_QR"：
+        设备仍然按文本现场编码，屏幕上是干净的标准二维码。
+        """
+        if not qr_decode.decoder_available():
+            self._log(
+                "warning", "未安装 Pillow / zxing-cpp，暂时无法导入图片二维码。"
+            )
+            messagebox.showinfo(
+                "缺少图片解码依赖",
+                "「导入图片」需要 Pillow 与 zxing-cpp 两个库。\n\n"
+                f"安装命令：\n{qr_decode.install_hint()}",
+                parent=self,
+            )
+            return
+
+        pattern = " ".join(f"*{suffix}" for suffix in qr_decode.SUPPORTED_SUFFIXES)
+        path = filedialog.askopenfilename(
+            parent=self,
+            title="选择包含二维码的图片",
+            filetypes=[("图片文件", pattern), ("所有文件", "*.*")],
+        )
+        if not path:
+            return
+
+        self._set_status("正在解码图片中的二维码…")
+        self.update_idletasks()
+        try:
+            result = qr_decode.decode_qr_image(path)
+        except qr_decode.QrDecodeError as exc:
+            self._log("error", f"图片解码失败：{exc}".replace("\n", " "))
+            self._set_status("图片解码失败，详见日志")
+            messagebox.showwarning("解码失败", str(exc), parent=self)
+            return
+
+        self._text.delete("1.0", "end")
+        self._text.insert("1.0", result.text)
+        try:
+            self._text.edit_modified(False)
+        except tk.TclError:
+            pass
+        self._update_byte_counter()
+        self._log(
+            "info",
+            f"图片解码成功：{result.format}，{result.byte_length} 字节，"
+            f"共 {result.count} 个码（取第一个），来源 {Path(result.source).name}",
+        )
+
+        if result.byte_length > protocol.MAX_TEXT_BYTES:
+            self._log("error", "解出的文本超过 256 UTF-8 字节，未发送。")
+            self._set_status("解出的文本超过 256 字节上限")
+            messagebox.showwarning(
+                "文本过长",
+                f"图片里的内容为 {result.byte_length} 个 UTF-8 字节，"
+                f"超过固件 {protocol.MAX_TEXT_BYTES} 字节上限，无法发送。\n"
+                "文本已填入输入框，可自行删减后重试。",
+                parent=self,
+            )
+            return
+
+        if not self._connected:
+            self._set_status(
+                f"已导入 {result.byte_length} 字节文本，连接串口后点「生成并显示」"
+            )
+            return
+
+        self._set_status("已从图片导入二维码，正在发送…")
+        self._on_generate()
 
     def _on_generate(self) -> None:
         """校验文本和参数，发送 CMD_SET_QR。"""
